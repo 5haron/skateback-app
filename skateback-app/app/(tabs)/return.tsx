@@ -3,6 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import haversine from 'haversine';
 
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
 // cmu coords
 const cmuLat = 40.4435;
 const cmuLon= -79.9437; 
@@ -10,7 +15,7 @@ const cmuLon= -79.9437;
 const destLat = 40.4435; 
 const destLon = -79.9436;
 
-const calculateDistance = (startCoords, destCoords) => {
+const calculateDistance = (startCoords: Coordinates, destCoords: Coordinates): number => {
   return haversine(startCoords, destCoords, { unit: 'meter' });
 };
 
