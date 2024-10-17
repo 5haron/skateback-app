@@ -6,7 +6,7 @@ export default function WelcomeScreen() {
   const router = useRouter(); 
 
   const handlePairSkateboard = () => {
-    router.push('/remote');
+    router.push('/instruction');
   };
 
   return (

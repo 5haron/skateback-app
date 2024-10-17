@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 
-export default function InstructionPage() {
+export default function SearchingPage() {
   const router = useRouter();
 
   const handleCancelSearch = () => {
