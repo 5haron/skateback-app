@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 
 export default function DeviceListPage() {
   const router = useRouter();
-
   const [selectedSkateboard, setSelectedSkateboard] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false); 
   const buttonColors = ['#8ECAE6', '#229EBC', '#FFB706', '#FB8500'];
@@ -22,6 +21,13 @@ export default function DeviceListPage() {
       setSelectedSkateboard(null);
     } else {
       setIsConnecting(true);
+      
+      setTimeout(() => {
+        router.push({
+          pathname: '/success',
+          params: { skateboard: selectedSkateboard }, 
+        });
+      }, 1000);
     }
   };
 
