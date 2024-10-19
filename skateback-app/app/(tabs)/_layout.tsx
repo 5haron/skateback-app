@@ -5,20 +5,50 @@ import { Image } from 'react-native';
 export default function TabLayout() {
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: '#8ECAE6',  
-          borderTopLeftRadius: 20,     
-          borderTopRightRadius: 20,    
-          height: 70,                   
-          paddingVertical: 10,   
-          paddingBottom: 0,           
-          paddingTop: 0,                
-          elevation: 0,                
+          backgroundColor: '#fff',  
+          borderTopLeftRadius: 30,
+          borderTopRightRadius: 30,
+          height: 80,
+          paddingBottom: 10,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
         },
-      }}
+        tabBarIcon: ({ color }) => {
+          let iconName;
+
+          switch (route.name) {
+            case 'remote':
+              iconName = require('@skateback/assets/icons/remote.png');
+              break;
+            case 'return':
+              iconName = require('@skateback/assets/icons/locations.png');
+              break;
+            case 'stats':
+              iconName = require('@skateback/assets/icons/graph.png');
+              break;
+          }
+
+          return (
+            <Image
+              source={iconName}
+              style={{
+                width: 35,
+                height: 35,
+                tintColor: color,  
+              }}
+            />
+          );
+        },
+        tabBarActiveTintColor: '#023047', 
+        tabBarInactiveTintColor: '#8ECAE6', 
+      })}
     >
       <Tabs.Screen
         name="remote"
@@ -27,7 +57,7 @@ export default function TabLayout() {
             <Image
               source={require('@skateback/assets/icons/remote.png')}
               style={{
-                width: 35,              
+                width: 35,
                 height: 35,
                 tintColor: color,
               }}
@@ -42,7 +72,7 @@ export default function TabLayout() {
             <Image
               source={require('@skateback/assets/icons/locations.png')}
               style={{
-                width: 35,              
+                width: 35,
                 height: 35,
                 tintColor: color,
               }}
@@ -57,7 +87,7 @@ export default function TabLayout() {
             <Image
               source={require('@skateback/assets/icons/graph.png')}
               style={{
-                width: 35,               
+                width: 35,
                 height: 35,
                 tintColor: color,
               }}
@@ -68,3 +98,4 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
