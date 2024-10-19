@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 
 export default function StatsScreen() {
+  const [milesTraveled, setMilesTraveled] = useState(5); 
+
+  const co2PerMile = 0.404; 
+  const co2Saved = (milesTraveled * co2PerMile).toFixed(2);
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -23,7 +28,7 @@ export default function StatsScreen() {
 
         <View style={styles.statBox}>
           <Text style={styles.statDescription}>Traveled</Text>
-          <Text style={styles.statValue}>5</Text>
+          <Text style={styles.statValue}>{milesTraveled}</Text>
           <Text style={styles.statLabel}>miles</Text>
         </View>
       </View>
@@ -34,7 +39,7 @@ export default function StatsScreen() {
             source={require('@skateback/assets/icons/leaf.png')}
             style={styles.icon}
           />
-          <Text style={styles.carbonValue}>1.5 kg</Text>
+          <Text style={styles.carbonValue}>{co2Saved} kg</Text>
           <Text style={styles.statDescription}>CO<Text style={styles.subscript}>2</Text> {'\n'}saved
           </Text>
         </View>
@@ -103,7 +108,7 @@ const styles = StyleSheet.create({
     color: '#023047',
   },
   carbonValue: {
-    fontSize: 60,
+    fontSize: 55,
     fontWeight: 'bold',
     color: '#023047',
   },
