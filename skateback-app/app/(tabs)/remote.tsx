@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function RemoteControlScreen() {
   const [isReverse, setIsReverse] = useState(false); 
   const [batteryPercentage, setBatteryPercentage] = useState(100); 
+  const { skateboardName } = useLocalSearchParams(); 
 
   const renderBatteryRectangles = () => {
     const numberOfRectangles = Math.floor(batteryPercentage / 20);
@@ -19,10 +21,14 @@ export default function RemoteControlScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>
-          Sharon's{'\n'}
-          <Text>Skateboard</Text>
-        </Text>
+      <Text style={styles.title}>
+        {skateboardName 
+          ? (Array.isArray(skateboardName) 
+              ? skateboardName.join(' ').replace(/skateboard/i, '').trim() 
+              : skateboardName.replace(/skateboard/i, '').trim()) 
+          : "Unknown's"}{'\n'}
+        <Text>Skateboard</Text>
+      </Text>
         <View style={styles.roundedBox}>
           <Image
             source={require('@skateback/assets/icons/skateboard.png')}

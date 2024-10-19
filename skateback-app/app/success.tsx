@@ -7,7 +7,10 @@ export default function SuccessPage() {
   const { skateboard } = useLocalSearchParams(); 
 
   const handleNext = () => {
-    router.push('/remote');
+    router.push({
+      pathname: '/remote',
+      params: { skateboardName: skateboard } 
+    });
   };
 
   return (
