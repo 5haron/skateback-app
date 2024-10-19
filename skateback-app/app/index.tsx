@@ -1,53 +1,116 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ImageBackground } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function WelcomeScreen() {
-  const router = useRouter(); 
+  const router = useRouter();
+
+  const textPositionY = useRef(new Animated.Value(300)).current; 
+  const rectangleOpacities = [
+    useRef(new Animated.Value(0)).current, 
+    useRef(new Animated.Value(0)).current, 
+    useRef(new Animated.Value(0)).current, 
+    useRef(new Animated.Value(0)).current, 
+    useRef(new Animated.Value(0)).current
+  ];
+  const imageX = useRef(new Animated.Value(500)).current; 
+  const descriptionOpacity = useRef(new Animated.Value(0)).current; 
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
 
   const handlePairSkateboard = () => {
     router.push('/instruction');
   };
 
+  useEffect(() => {
+    // 1: slide up headers 
+    Animated.timing(textPositionY, {
+      toValue: 0, 
+      duration: 1000,
+      useNativeDriver: true,
+    }).start(() => {
+      // 2: fade in rectangles after 
+      Animated.stagger(200, 
+        rectangleOpacities.map((opacity) =>
+          Animated.timing(opacity, {
+            toValue: 1, 
+            duration: 500,
+            useNativeDriver: true,
+          })
+        )
+      ).start();
+
+      // 3: slide skateboarder from right
+      Animated.timing(imageX, {
+        toValue: 0, 
+        duration: 1000,
+        delay: 500,
+        useNativeDriver: true,
+      }).start();
+
+      // 4: fade in description and button 
+      Animated.timing(descriptionOpacity, {
+        toValue: 1,
+        duration: 500,
+        delay: 1000,
+        useNativeDriver: true,
+      }).start();
+
+      Animated.timing(buttonOpacity, {
+        toValue: 1, 
+        duration: 500,
+        delay: 1000, 
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [textPositionY, rectangleOpacities, imageX, descriptionOpacity, buttonOpacity]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.firstContainer}>
+      <Animated.View style={[styles.firstContainer, { transform: [{ translateY: textPositionY }] }]}>
         <Text style={styles.subtitle}>Welcome to</Text>
         <Text style={styles.title}>SkateBack</Text>
         <Text style={styles.subtitle}>Ride Freely, Return Easily.</Text>
-      </View>
+      </Animated.View>
 
       <View style={styles.secondContainer}>
         <View style={styles.rectangleContainer}>
-          <View style={[styles.rectangle, styles.rectangle1]} />
-          <View style={[styles.rectangle, styles.rectangle2]} />
-          <View style={[styles.rectangle, styles.rectangle3]} />
-          <View style={[styles.rectangle, styles.rectangle4]} />
-          <View style={[styles.rectangle, styles.rectangle5]} />
+          {rectangleOpacities.map((opacity, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.rectangle,
+                styles[`rectangle${index + 1}`],
+                { opacity },
+              ]}
+            />
+          ))}
         </View>
-        <Image
+
+        <Animated.Image
           source={require('@skateback/assets/images/skateboarder.png')}
-          style={styles.image}
+          style={[styles.image, { transform: [{ translateX: imageX }] }]} 
         />
       </View>
 
       <View style={styles.thirdContainer}>
-        <Text style={styles.description}>
+        <Animated.Text style={[styles.description, { opacity: descriptionOpacity }]}>
           Easily <Text style={styles.boldText}>control</Text> your skateboard, 
           <Text style={styles.boldText}> track</Text> performance, and use the 
           <Text style={styles.boldText}> 'return to me'</Text> feature for quick retrieval.
-        </Text>
+        </Animated.Text>
 
-        <TouchableOpacity onPress={handlePairSkateboard}>
-          <ImageBackground
-            source={require('@skateback/assets/images/button-color.png')} 
-            style={styles.button}
-            resizeMode="cover" 
-            imageStyle={styles.buttonImage}
-          >
-            <Text style={styles.buttonText}>Pair Skateboard</Text>
-          </ImageBackground>
-        </TouchableOpacity>
+        <Animated.View style={{ opacity: buttonOpacity }}>
+          <TouchableOpacity onPress={handlePairSkateboard}>
+            <ImageBackground
+              source={require('@skateback/assets/images/button-color.png')} 
+              style={styles.button}
+              resizeMode="cover" 
+              imageStyle={styles.buttonImage}
+            >
+              <Text style={styles.buttonText}>Pair Skateboard</Text>
+            </ImageBackground>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
@@ -114,18 +177,20 @@ const styles = StyleSheet.create({
     position: 'absolute', 
     left: 90,       
     top: 56,         
-    zIndex: 1,      
+    zIndex: 1,  
   },
   thirdContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 12,
+    paddingBottom: 10
   },
   description: {
     paddingHorizontal: 48,
     textAlign: 'center',
-    marginBottom: 40,
+    marginTop: 5,
+    marginBottom: 5, 
     fontSize: 12,
     color: '#818590'
   },
