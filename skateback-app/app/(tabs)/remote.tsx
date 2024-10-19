@@ -181,9 +181,9 @@ const styles = StyleSheet.create({
   },
   batteryRectangle: {
     width: '100%',
-    height: 22,
+    height: 21,
     backgroundColor: 'white',
-    marginBottom: 3, 
+    marginBottom: 4, 
   },
   rightContainer: {
     flex: 1,
