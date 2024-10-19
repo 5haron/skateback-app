@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 80, 
     left: 50,
+    right: 50
   },
   absoluteInstructionsContainer: {
     position: 'absolute',

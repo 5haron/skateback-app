@@ -12,13 +12,14 @@ export default function TabLayout() {
           backgroundColor: '#fff',  
           borderTopLeftRadius: 30,
           borderTopRightRadius: 30,
-          height: 80,
-          paddingBottom: 10,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          height: 70,
+          position: 'absolute', 
+          bottom: -10,
+          left: 0,
+          right: 0,
+          paddingBottom: 10, 
+          elevation: 0, 
+          shadowColor: 'transparent', 
         },
         tabBarIcon: ({ color }) => {
           let iconName;
@@ -98,4 +99,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
