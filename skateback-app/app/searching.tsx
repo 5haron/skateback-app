@@ -1,9 +1,43 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function SearchingPage() {
   const router = useRouter();
+
+  const progressWidth = useRef(new Animated.Value(0.05)).current;
+  const scale1 = useRef(new Animated.Value(0)).current;
+  const scale2 = useRef(new Animated.Value(0)).current;
+  const scale3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressWidth, {
+      toValue: 1,
+      duration: 5000, 
+      useNativeDriver: false,
+    }).start();
+
+    const animateCircle = (scale) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    animateCircle(scale1);
+    animateCircle(scale2);
+    setTimeout(() => animateCircle(scale3), 500);
+  }, [progressWidth, scale1, scale2, scale3]);
 
   const handleCancelSearch = () => {
     router.push('/device-list');
@@ -12,7 +46,17 @@ export default function SearchingPage() {
   return (
     <View style={styles.container}>
       <View style={styles.progressBarContainer}>
-        <View style={styles.progressBar} />
+        <Animated.View
+          style={[
+            styles.progressBar,
+            {
+              width: progressWidth.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['2%', '100%'],
+              }),
+            },
+          ]}
+        />
       </View>
 
       <View style={styles.absoluteTitleContainer}>
@@ -20,10 +64,21 @@ export default function SearchingPage() {
       </View>
 
       <View style={styles.absoluteContentContainer}>
-        <Image
-          source={require('@skateback/assets/icons/skateboard-search.png')}
-          style={styles.image}
-        />
+        <View style={styles.circleContainer}>
+          <Animated.View
+            style={[styles.circle, { transform: [{ scale: scale1 }] }]}
+          />
+          <Animated.View
+            style={[styles.circle, { transform: [{ scale: scale2 }] }]}
+          />
+          <Animated.View
+            style={[styles.circle, { transform: [{ scale: scale3 }] }]}
+          />
+          <Image
+            source={require('@skateback/assets/icons/skateboard-search.png')}
+            style={styles.image}
+          />
+        </View>
       </View>
 
       <View style={styles.absoluteButtonContainer}>
@@ -42,37 +97,48 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     position: 'absolute',
-    top: 50, 
-    left: 50, 
-    right: 50, 
-    height: 10, 
-    backgroundColor: '#D9D9D9', 
+    top: 50,
+    left: 50,
+    right: 50,
+    height: 10,
+    backgroundColor: '#D9D9D9',
     borderRadius: 5,
+    overflow: 'hidden',
   },
   progressBar: {
-    width: '30%', 
     height: '100%',
-    backgroundColor: '#FC8500', 
+    backgroundColor: '#FC8500',
     borderRadius: 5,
   },
   absoluteTitleContainer: {
     position: 'absolute',
-    top: 80, 
+    top: 80,
     left: 50,
-    right: 50
+    right: 50,
   },
   absoluteContentContainer: {
     position: 'absolute',
-    top: 200,
-    left: 50, 
-    right: 70,
+    top: 360,
+    left: 50,
+    right: 60,
+    alignItems: 'center',
+  },
+  circleContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circle: {
+    position: 'absolute',
+    width: 600,
+    height: 600,
+    borderRadius: 300,
+    backgroundColor: '#FFB706',
+    opacity: 0.2,
   },
   image: {
-    width: 297,     
-    height: 232,      
-    position: 'absolute', 
-    top: 170, 
-    left: 10,
+    width: 297,
+    height: 232,
+    zIndex: 1,
   },
   absoluteButtonContainer: {
     position: 'absolute',
@@ -86,6 +152,7 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: 'bold',
     color: '#023047',
+    textAlign: 'left',
   },
   button: {
     height: 57,
