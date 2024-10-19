@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import haversine from 'haversine';
@@ -26,7 +26,7 @@ export default function ReturnToMeScreen() {
   const distance = calculateDistance(
     { latitude: cmuLat, longitude: cmuLon },
     { latitude: cmuLat, longitude: destLon }
-  ).toFixed(4);
+  );
 
   const recenterMap = () => {
     if (mapRef.current) {
@@ -48,7 +48,10 @@ export default function ReturnToMeScreen() {
         <Text style={styles.title}>Return to Me</Text>
       </View>
       
-      <TouchableOpacity style={styles.button}>
+      <TouchableOpacity
+        style={[styles.button, distance > 5 && styles.buttonDisabled]}
+        disabled={distance > 5}
+      >
         <Text style={styles.buttonText}>Start Return</Text>
       </TouchableOpacity>
 
@@ -73,12 +76,34 @@ export default function ReturnToMeScreen() {
 
       <View style={styles.infoContainer}>
         <Text style={styles.infoText}>
-          <Text style={styles.boldText}>Distance:</Text> {distance} meters
+          <Text style={styles.boldText}>Distance:</Text> 
+          <Text style={[styles.distanceText, distance > 5 && styles.redText]}> {distance.toFixed(2)} meters</Text>
         </Text>
-        <Text style={styles.infoText}>
-          <Text style={styles.boldText}>ETA:</Text> 2 minutes
-        </Text>
+
+        {distance <= 5 && (
+          <Text style={styles.infoText}>
+            <Text style={styles.boldText}>ETA:</Text> 2 minutes
+          </Text>
+        )}
       </View>
+
+      {distance > 5 && (
+        <View style={styles.warningContainer}>
+          <View style={styles.overlayRectangle} />
+          <View style={styles.warningContent}>
+            <View style={styles.warningRow}>
+              <Image
+                source={require('@skateback/assets/icons/warning.png')} 
+                style={styles.customIcon}
+              />
+              <Text style={styles.warningTitle}>Skateboard Out of Range</Text>
+            </View>
+            <Text style={styles.warningText}>
+              The skateboard is too far away for the Return to Me feature to work. Please move closer or manually retrieve the skateboard.
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -110,7 +135,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 30,
     marginHorizontal: 20,
-    marginTop: -5
+    marginTop: -5,
+  },
+  buttonDisabled: {
+    backgroundColor: '#C1C1C1',
   },
   buttonText: {
     fontSize: 21,
@@ -139,6 +167,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 3, 
   },
+  icon: {
+    width: 25,
+    height: 25,
+  },
   infoContainer: {
     alignItems: 'flex-end',
   },
@@ -151,5 +183,50 @@ const styles = StyleSheet.create({
   },
   boldText: {
     fontWeight: 'bold',
-  }
+  },
+  distanceText: {
+    color: '#023047',
+  },
+  redText: {
+    color: '#FF0000',
+    fontWeight: 'bold', 
+  },
+  warningContainer: {
+    backgroundColor: '#E8F4FA',
+    marginHorizontal: 20,
+    marginTop: 10,
+    position: 'relative',
+  },
+  warningContent: {
+    padding: 17,
+    paddingLeft: 30,
+    paddingRight: 15,
+  },
+  warningRow: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 4,
+  },
+  warningTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#023047',
+    marginLeft: 8, 
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#023047',
+  },
+  overlayRectangle: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 15,
+    height: '100%', 
+    backgroundColor: '#BBDFF0',
+  },
+  customIcon: {
+    width: 34,
+    height: 34,
+  },
 });
