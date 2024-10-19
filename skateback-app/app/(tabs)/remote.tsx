@@ -3,6 +3,18 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Switch } from 'react-n
 
 export default function RemoteControlScreen() {
   const [isReverse, setIsReverse] = useState(false); 
+  const [batteryPercentage, setBatteryPercentage] = useState(100); 
+
+  const renderBatteryRectangles = () => {
+    const numberOfRectangles = Math.floor(batteryPercentage / 20);
+    let rectangles = [];
+    for (let i = 0; i < numberOfRectangles; i++) {
+      rectangles.push(
+        <View key={i} style={styles.batteryRectangle} />
+      );
+    }
+    return rectangles;
+  };
 
   return (
     <View style={styles.container}>
@@ -25,7 +37,24 @@ export default function RemoteControlScreen() {
       </View>
 
       <View style={styles.splitContainer}>
-        <View style={styles.leftBox} />
+        <View style={styles.leftBox}>
+          <Image
+            source={require('@skateback/assets/icons/skate-battery.png')}
+            style={styles.skateBatteryImage} 
+            resizeMode="contain"
+          />
+          <Image
+            source={require('@skateback/assets/icons/battery.png')}
+            style={styles.batteryImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.batteryLabel}>{batteryPercentage}%</Text>
+
+          <View style={styles.batteryRectangleContainer}>
+            {renderBatteryRectangles()}
+          </View>
+        </View>
+        
         <View style={styles.rightContainer}>
           <View style={styles.buttonContainer}>
             <Text style={styles.controlLabel}>Accelerate</Text>
@@ -114,9 +143,47 @@ const styles = StyleSheet.create({
   },
   leftBox: {
     flex: 1,
-    backgroundColor: '#E7F2F8',
     marginRight: 10,
     borderRadius: 20,
+    position: 'relative', 
+  },
+  skateBatteryImage: {
+    width: 410,
+    height: 410,
+    alignSelf: 'center', 
+    marginTop: 5,
+    marginLeft: -5
+  },  
+  batteryImage: {
+    position: 'absolute',     
+    top: 105,                 
+    left: 9,               
+    width: 160,            
+    height: 160,
+  },
+  batteryLabel: {
+    position: 'absolute',
+    top: 275, 
+    width: 185,
+    textAlign: 'center',  
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  batteryRectangleContainer: {
+    position: 'absolute',
+    top: 154,
+    left: 61,
+    width: 56,
+    height: 100, 
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+  },
+  batteryRectangle: {
+    width: '100%',
+    height: 22,
+    backgroundColor: 'white',
+    marginBottom: 3, 
   },
   rightContainer: {
     flex: 1,
@@ -129,7 +196,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonContainer: {
-    alignItems: 'center', // Center the label and button
+    alignItems: 'center', 
     justifyContent: 'flex-start',
     marginBottom: 10,
   },
@@ -157,6 +224,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#023047',
     marginRight: 10,
+    marginLeft: 25
   },
   switchWrapper: {
     flexDirection: 'row', 
