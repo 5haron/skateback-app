@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, TouchableWithoutFeedback } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 export default function DeviceListPage() {
   const router = useRouter();
+  const { devices } = useLocalSearchParams();  
   const [selectedSkateboard, setSelectedSkateboard] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false); 
-  const buttonColors = ['#8ECAE6', '#229EBC', '#FFB706', '#FB8500'];
-  const skateboards = ['Sharon\'s Skateboard', 'Jason\'s Skateboard', 'Tio\'s Skateboard', 'Jessica\'s Skateboard'];
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  useEffect(() => {
+    if (!devices || devices.length === 0) {
+      router.push('/fail');
+    }
+  }, [devices, router]);
 
   const handleSelectSkateboard = (skateboard) => {
     if (!isConnecting) {
@@ -25,73 +30,61 @@ export default function DeviceListPage() {
       setTimeout(() => {
         router.push({
           pathname: '/success',
-          params: { skateboard: selectedSkateboard }, 
+          params: { skateboard: selectedSkateboard },  
         });
       }, 1000);
     }
   };
 
   const renderButtons = () => {
-    return skateboards.map((skateboard, index) => {
-      const isSelected = selectedSkateboard === skateboard;
-      const buttonColor = buttonColors[index % 4];
-
-      if (!isSelected && isConnecting) return null; 
-
+    return devices.split(',').map((device, index) => {
+      const isSelected = selectedSkateboard === device;
+      const buttonColor = ['#8ECAE6', '#229EBC', '#FFB706', '#FB8500'][index % 4];
+    
       return (
         <TouchableOpacity
-          key={index}
+          key={device + index}  
           style={[
             styles.deviceButton,
             {
-              borderColor: isSelected ? buttonColor : selectedSkateboard ? '#D9D9D9' : buttonColor, 
-              backgroundColor: isSelected ? buttonColor : '#FFFFFF', 
-              opacity: selectedSkateboard && !isSelected ? 0.3 : 1, 
+              borderColor: isSelected ? buttonColor : selectedSkateboard ? '#D9D9D9' : buttonColor,
+              backgroundColor: isSelected ? buttonColor : '#FFFFFF',
+              opacity: selectedSkateboard && !isSelected ? 0.3 : 1,
             }
           ]}
-          onPress={() => handleSelectSkateboard(skateboard)}
+          onPress={() => handleSelectSkateboard(device)}
         >
           <Image
             source={require('@skateback/assets/icons/skateboard.png')}
             style={styles.icon}
           />
-          <Text style={styles.deviceButtonText}>{skateboard}</Text>
-
-          {isSelected && isConnecting && ( 
-            <ActivityIndicator size="small" color="#000000" style={styles.loader} /> 
+          <Text style={styles.deviceButtonText}>{device.name || device}</Text> 
+          {isSelected && isConnecting && (
+            <ActivityIndicator size="small" color="#000000" style={styles.loader} />
           )}
         </TouchableOpacity>
       );
-    });
+    });    
   };
-
-  const handleScreenTap = () => {
-    if (!isConnecting) {
-      setSelectedSkateboard(null); 
-    }
-  };
+  
 
   return (
-    <TouchableWithoutFeedback onPress={handleScreenTap}>
+    <TouchableWithoutFeedback onPress={() => setSelectedSkateboard(null)}>
       <View style={styles.container}>
         <View style={styles.progressBarContainer}>
           <View style={styles.progressBar} />
-          {!isConnecting && (
-            <Image
-              source={require('@skateback/assets/icons/checked.png')} 
-              style={styles.checkedIcon}
-            />
-          )}
         </View>
 
         <View style={styles.absoluteTitleContainer}>
           <Text style={styles.title}>
             {isConnecting ? 'Connecting...' : 'Devices Found'}
-          </Text> 
+          </Text>
         </View>
 
         <View style={styles.absoluteContentContainer}>
-          <Text style={styles.instructionText}>{isConnecting ? 'Hang tight! Connecting to your skateboard.' : 'Select your skateboard to connect.'}</Text>
+          <Text style={styles.instructionText}>
+            {isConnecting ? 'Hang tight! Connecting to your skateboard.' : 'Select your skateboard to connect.'}
+          </Text>
           <View style={styles.deviceButtonContainer}>
             {renderButtons()}
           </View>
@@ -199,7 +192,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   loader: {
-    marginLeft: 'auto', 
+    marginLeft: 'auto',
     marginRight: 10,
   },
   button: {
@@ -208,11 +201,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
-    backgroundColor: '#FB8500', 
-    borderWidth: 0, 
+    backgroundColor: '#FB8500',
+    borderWidth: 0,
   },
   buttonText: {
-    color: '#FFFFFF', 
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
   },

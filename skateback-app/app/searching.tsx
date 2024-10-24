@@ -1,22 +1,38 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BleManager } from 'react-native-ble-plx';
 
 export default function SearchingPage() {
   const router = useRouter();
+  const manager = new BleManager({
+    restoreStateIdentifier: 'skateback-bluetooth',
+    restoreStateFunction: (restoredState) => {
+      if (restoredState) {
+        console.log('Restored state:', restoredState);
+      }
+    }
+  });
 
   const progressWidth = useRef(new Animated.Value(0.05)).current;
   const scale1 = useRef(new Animated.Value(0)).current;
   const scale2 = useRef(new Animated.Value(0)).current;
   const scale3 = useRef(new Animated.Value(0)).current;
 
+  const [deviceFound, setDeviceFound] = useState(false);
+  const [animationDone, setAnimationDone] = useState(false);
+
   useEffect(() => {
+    startScanning();
+
+    // initial progress bar animation (15s)
     Animated.timing(progressWidth, {
       toValue: 1,
-      duration: 5000, 
+      duration: 15000,
       useNativeDriver: false,
     }).start();
 
+    // circle animations
     const animateCircle = (scale) => {
       Animated.loop(
         Animated.sequence([
@@ -37,10 +53,70 @@ export default function SearchingPage() {
     animateCircle(scale1);
     animateCircle(scale2);
     setTimeout(() => animateCircle(scale3), 500);
+
+    // stop scanning after 15s if nothing is found
+    const scanTimeout = setTimeout(() => {
+      if (!deviceFound) {
+        manager.stopDeviceScan();
+        console.log("Scan timed out.");
+        router.push('/fail'); 
+      }
+    }, 15000);  
+
+    return () => {
+      manager.stopDeviceScan();
+      clearTimeout(scanTimeout);
+    };
   }, [progressWidth, scale1, scale2, scale3]);
 
+  const startScanning = () => {
+    manager.onStateChange((state) => {
+      if (state === 'PoweredOn') {
+        console.log('Bluetooth is on, starting scan...');
+        manager.startDeviceScan(null, null, (error, device) => {
+          if (error) {
+            console.error("Error while scanning:", error);
+            return;
+          }
+          
+          console.log('Device found:', device);  
+
+          if (device && device.name && device.name.includes("mypi")) {
+            console.log("Raspberry Pi found:", device.name); 
+            setDeviceFound(true);
+            speedUpProgressBar(); 
+          }
+        });
+      } else {
+        console.log('Bluetooth state:', state);
+        if (state === 'PoweredOff') {
+          alert("Please turn on Bluetooth to scan for devices.");
+        }
+      }
+    }, true);
+  };
+
+  // speed up the progress bar when device is found
+  const speedUpProgressBar = () => {
+    Animated.timing(progressWidth, {
+      toValue: 1,
+      duration: 1500,  
+      useNativeDriver: false,
+    }).start(() => {
+      setAnimationDone(true);
+      
+      setTimeout(() => {
+        router.push({
+          pathname: '/device-list',
+          params: { devices: 'mypi' }, 
+        });
+      }, 900); 
+    });
+  };
+
   const handleCancelSearch = () => {
-    router.push('/device-list');
+    manager.stopDeviceScan();  
+    router.push('/instruction');  
   };
 
   return (

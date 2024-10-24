@@ -24,7 +24,7 @@ export default function SuccessPage() {
       </View>
 
       <View style={styles.absoluteTitleContainer}>
-        <Text style={styles.title}>Connected to {skateboard}</Text>
+        <Text style={styles.title}>Connected to{'\n'}{skateboard}</Text>
       </View>
 
       <View style={styles.absoluteContentContainer}>

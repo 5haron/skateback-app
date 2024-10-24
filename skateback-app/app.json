@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "skateback-app",
-    "slug": "skateback-app",
+    "name": "SkateBack",
+    "slug": "skateback",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -59,6 +59,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9b07b1a7-b2f4-46d6-bc94-af9773e2e833"
+      }
     }
   }
 }

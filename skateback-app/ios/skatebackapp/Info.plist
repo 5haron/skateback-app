@@ -39,7 +39,7 @@
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>
-      <false/>
+      <true/>
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
@@ -47,9 +47,10 @@
     <string>Allow $(PRODUCT_NAME) to connect to Bluetooth devices</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>This app needs Bluetooth to communicate with nearby devices.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need your location to discover nearby Bluetooth devices.</string>
     <key>NSUserActivityTypes</key>
     <array>
-      <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
     </array>
     <key>UIBackgroundModes</key>
