@@ -4,7 +4,7 @@ After=bluetooth.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /path/to/skateback-app/raspberry-pi/scripts/setup-bluetooth.sh
+ExecStart=/bin/bash /home/pi/skateback-app/skateback-pi/scripts/setup-bluetooth.sh
 Restart=on-failure
 
 [Install]

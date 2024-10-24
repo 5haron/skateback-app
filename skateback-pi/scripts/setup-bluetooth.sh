@@ -8,7 +8,7 @@ sudo hciconfig hci0 piscan
 
 bluetoothctl << EOF
 power on
-agent on
+agent NoInputNoOutput
 default-agent
 pairable on
 discoverable on
