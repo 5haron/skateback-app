@@ -1,11 +1,39 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import axios from 'axios';  
 import { useLocalSearchParams } from 'expo-router';
+
+const API_BASE_URL = 'http://172.26.54.250:3000';  
 
 export default function RemoteControlScreen() {
   const [isReverse, setIsReverse] = useState(false); 
   const [batteryPercentage, setBatteryPercentage] = useState(100); 
   const { skateboardName } = useLocalSearchParams(); 
+
+  const handleAccelerate = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/accelerate`);
+    } catch (error) {
+      console.error('Error accelerating', error);
+    }
+  };
+
+  const handleDecelerate = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/decelerate`);
+    } catch (error) {
+      console.error('Error decelerating', error);
+    }
+  };
+
+  const handleReverse = async (isReverse: boolean) => {
+    try {
+      await axios.post(`${API_BASE_URL}/reverse`, { reverse: isReverse });
+      console.log(`Reverse ${isReverse ? 'on' : 'off'}`);
+    } catch (error) {
+      console.error('Error toggling reverse', error);
+    }
+  };
 
   const renderBatteryRectangles = () => {
     const numberOfRectangles = Math.floor(batteryPercentage / 20);
@@ -21,14 +49,14 @@ export default function RemoteControlScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-      <Text style={styles.title}>
-        {skateboardName 
-          ? (Array.isArray(skateboardName) 
-              ? skateboardName.join(' ').replace(/skateboard/i, '').trim() 
-              : skateboardName.replace(/skateboard/i, '').trim()) 
-          : "Unknown's"}{'\n'}
-        <Text>Skateboard</Text>
-      </Text>
+        <Text style={styles.title}>
+          {skateboardName 
+            ? (Array.isArray(skateboardName) 
+                ? skateboardName.join(' ').replace(/skateboard/i, '').trim() 
+                : skateboardName.replace(/skateboard/i, '').trim()) 
+            : "Unknown's"}{'\n'}
+          <Text>Skateboard</Text>
+        </Text>
         <View style={styles.roundedBox}>
           <Image
             source={require('@skateback/assets/icons/skateboard.png')}
@@ -64,13 +92,13 @@ export default function RemoteControlScreen() {
         <View style={styles.rightContainer}>
           <View style={styles.buttonContainer}>
             <Text style={styles.controlLabel}>Accelerate</Text>
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity style={styles.button} onPress={handleAccelerate}>
               <Text style={styles.buttonText}>+</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.buttonContainer}>
             <Text style={styles.controlLabel}>Decelerate</Text>
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity style={styles.button} onPress={handleDecelerate}>
               <Text style={styles.buttonText}>–</Text>
             </TouchableOpacity>
           </View>
@@ -79,7 +107,10 @@ export default function RemoteControlScreen() {
             <Text style={styles.reverseText}>Reverse</Text>
             <Switch
               value={isReverse}
-              onValueChange={(value) => setIsReverse(value)}
+              onValueChange={(value) => {
+                setIsReverse(value);
+                handleReverse(value);
+              }}
               trackColor={{ false: '#ccc', true: '#8ECAE6' }} 
               thumbColor={isReverse ? '#023047' : '#f4f3f4'} 
             />

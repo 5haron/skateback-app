@@ -15,8 +15,10 @@ app.post('/decelerate', (req, res) => {
 });
 
 app.post('/reverse', (req, res) => {
+  const { reverse } = req.body;
   console.log("Reversing");
-  res.send({ message: 'Reversing' });
+  console.log(`Reverse: ${reverse ? 'ON' : 'OFF'}`);
+  res.status(200).send({ message: `Reverse ${reverse ? 'ON' : 'OFF'}` });
 });
 
 app.listen(port, () => {
