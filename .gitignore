@@ -9,3 +9,7 @@ skateboard-backend/node_modules/
 
 # macOS
 .DS_Store
+
+# __pycache__
+*.pyc
+__pycache__/

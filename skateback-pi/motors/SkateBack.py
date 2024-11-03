@@ -2,14 +2,14 @@ import serial
 import time
 import threading
 import pyvesc
-from pyvesc import SetDutyCycle, SetCurrent, GetValues
+from pyvesc.VESC.messages import SetDutyCycle, SetCurrent, GetValues
 
 ACC_STEP = 0.01    # Duty Cycle step for acceleration
 DEC_STEP = 0.02    # Duty Cycle step for deceleration
 BRK_STEP = 0.04    # Duty Cycle step for breaking
 SERIAL_L = '/dev/ttyACM0'    # Serial Port for left motor
 SERIAL_R = '/dev/ttyACM1'    # Serial Port for right motor
-MAX_DUTY_CYCLE = 1.0    # Max duty cycle
+MAX_DUTY_CYCLE = 0.6    # Max duty cycle
 
 class SkateBack:
     def __init__(self):
@@ -148,19 +148,38 @@ class SkateBack:
 
         Args:
             wheel (str): 'L' for left, 'R' for right.
-            target_duty_cycle (float): Duty cycle to reach, between 0.0 and MAX_DUTY_CYCLE.
+            target_duty_cycle (float): Duty cycle to reach, between -MAX_DUTY_CYCLE and MAX_DUTY_CYCLE.
 
         Raises:
-            ValueError: If target_duty_cycle is outside the valid range.
+            ValueError: If target_duty_cycle is outside the valid range or invalid acceleration direction.
         """
-        if not 0.0 <= target_duty_cycle <= MAX_DUTY_CYCLE:
-            raise ValueError(f"Target duty cycle must be between 0.0 and {MAX_DUTY_CYCLE}")
+        if not -MAX_DUTY_CYCLE <= target_duty_cycle <= MAX_DUTY_CYCLE:
+            raise ValueError(f"Target duty cycle must be between {-MAX_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
 
         current_duty_cycle = self.get_duty_cycle(wheel)
-        while current_duty_cycle < target_duty_cycle:
-            current_duty_cycle += ACC_STEP
-            if current_duty_cycle > target_duty_cycle:
+
+        # Determine the direction of acceleration
+        if target_duty_cycle > current_duty_cycle:
+            # Accelerate forwards (positive duty cycle)
+            step = ACC_STEP
+        elif target_duty_cycle < current_duty_cycle:
+            # Accelerate backwards (negative duty cycle)
+            step = -ACC_STEP
+        else:
+            # Target duty cycle is equal to current; no action needed
+            return
+
+        # Accelerate towards target duty cycle without exceeding MAX_DUTY_CYCLE in magnitude
+        while (step > 0 and current_duty_cycle < target_duty_cycle) or \
+            (step < 0 and current_duty_cycle > target_duty_cycle):
+            current_duty_cycle += step
+            # Prevent overshooting the target duty cycle
+            if (step > 0 and current_duty_cycle > target_duty_cycle) or \
+            (step < 0 and current_duty_cycle < target_duty_cycle):
                 current_duty_cycle = target_duty_cycle
+            # Ensure duty cycle does not exceed MAX_DUTY_CYCLE in magnitude
+            if abs(current_duty_cycle) > MAX_DUTY_CYCLE:
+                current_duty_cycle = MAX_DUTY_CYCLE if current_duty_cycle > 0 else -MAX_DUTY_CYCLE
             self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
 
     def decelerate_to(self, wheel, target_duty_cycle):
@@ -169,21 +188,40 @@ class SkateBack:
 
         Args:
             wheel (str): 'L' for left, 'R' for right.
-            target_duty_cycle (float): Duty cycle to reach, between 0.0 and MAX_DUTY_CYCLE.
+            target_duty_cycle (float): Duty cycle to reach, between -MAX_DUTY_CYCLE and MAX_DUTY_CYCLE.
 
         Raises:
-            ValueError: If target_duty_cycle is outside the valid range.
+            ValueError: If target_duty_cycle is outside the valid range or invalid deceleration direction.
         """
-        if not 0.0 <= target_duty_cycle <= MAX_DUTY_CYCLE:
-            raise ValueError(f"Target duty cycle must be between 0.0 and {MAX_DUTY_CYCLE}")
+        if not -MAX_DUTY_CYCLE <= target_duty_cycle <= MAX_DUTY_CYCLE:
+            raise ValueError(f"Target duty cycle must be between {-MAX_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
 
         current_duty_cycle = self.get_duty_cycle(wheel)
-        while current_duty_cycle > target_duty_cycle:
-            current_duty_cycle -= DEC_STEP
-            if current_duty_cycle < target_duty_cycle:
+
+        # Determine the direction of deceleration
+        if current_duty_cycle > target_duty_cycle:
+            # Decelerate forwards (positive duty cycle towards zero or negative)
+            step = -DEC_STEP
+        elif current_duty_cycle < target_duty_cycle:
+            # Decelerate backwards (negative duty cycle towards zero or positive)
+            step = DEC_STEP
+        else:
+            # Target duty cycle is equal to current; no action needed
+            return
+
+        # Decelerate towards target duty cycle without exceeding MAX_DUTY_CYCLE in magnitude
+        while (step < 0 and current_duty_cycle > target_duty_cycle) or \
+            (step > 0 and current_duty_cycle < target_duty_cycle):
+            current_duty_cycle += step
+            # Prevent overshooting the target duty cycle
+            if (step < 0 and current_duty_cycle < target_duty_cycle) or \
+            (step > 0 and current_duty_cycle > target_duty_cycle):
                 current_duty_cycle = target_duty_cycle
+            # Ensure duty cycle does not exceed MAX_DUTY_CYCLE in magnitude
+            if abs(current_duty_cycle) > MAX_DUTY_CYCLE:
+                current_duty_cycle = MAX_DUTY_CYCLE if current_duty_cycle > 0 else -MAX_DUTY_CYCLE
             self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
-    
+
     def brake(self, wheel):
         """
         Gradually bring the duty cycle of a wheel to zero.
@@ -194,18 +232,35 @@ class SkateBack:
         current_duty_cycle = self.get_duty_cycle(wheel)
         target_duty_cycle = 0.0  # Since we're braking to zero
 
-        while current_duty_cycle != target_duty_cycle:
-            if current_duty_cycle > target_duty_cycle:
-                current_duty_cycle -= BRK_STEP
-                # Prevent overshooting the target
-                if current_duty_cycle < target_duty_cycle:
-                    current_duty_cycle = target_duty_cycle
-            elif current_duty_cycle < target_duty_cycle:
-                current_duty_cycle += BRK_STEP
-                if current_duty_cycle > target_duty_cycle:
-                    current_duty_cycle = target_duty_cycle
-            else:
-                # Duty cycle is already at target; exit loop
-                break
+        # Determine the direction of braking
+        if current_duty_cycle > 0:
+            step = -BRK_STEP  # Decrease duty cycle towards zero
+        elif current_duty_cycle < 0:
+            step = BRK_STEP   # Increase duty cycle towards zero
+        else:
+            # Duty cycle is already zero; no action needed
+            return
 
+        # Brake towards zero
+        while current_duty_cycle != target_duty_cycle:
+            current_duty_cycle += step
+            # Prevent overshooting zero
+            if (step < 0 and current_duty_cycle < target_duty_cycle) or \
+            (step > 0 and current_duty_cycle > target_duty_cycle):
+                current_duty_cycle = target_duty_cycle
             self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
+
+    def emergency_stop(self):
+        """
+        Immediately stop both wheels by setting current to zero.
+        """
+        try:
+            with self.lock_left:
+                self.serial_left.write(pyvesc.encode(SetCurrent(0)))
+                self.left_duty_cycle = 0.0
+            with self.lock_right:
+                self.serial_right.write(pyvesc.encode(SetCurrent(0)))
+                self.right_duty_cycle = 0.0
+        except Exception as e:
+            print(f"An error occurred during emergency_stop: {e}")
+            raise
