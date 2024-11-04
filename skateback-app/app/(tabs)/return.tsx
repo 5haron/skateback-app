@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Platform } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import Geolocation from 'react-native-geolocation-service';
+import { PERMISSIONS, request, check, RESULTS, Permission} from 'react-native-permissions';
 import haversine from 'haversine';
 
 type Coordinates = {
@@ -31,6 +33,62 @@ export default function ReturnToMeScreen() {
   const [returnStarted, setReturnStarted] = useState(false);
   const [eta, setEta] = useState(10); 
   const [progress, setProgress] = useState(new Animated.Value(0));
+  const [myLocation, setMyLocation] = useState<Coordinates | null>(null);
+
+  // request location permission
+  const requestLocationPermission = async () => {
+    const permissionType = Platform.select({
+      ios: PERMISSIONS.IOS.LOCATION_ALWAYS,
+      android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+    }) as Permission;
+
+    if (!permissionType) {
+      console.warn('Location permission type not supported');
+      return false;
+    }
+
+    const permissionStatus = await check(permissionType);
+
+    if (permissionStatus === RESULTS.GRANTED) {
+      return true;
+    }
+
+    if (permissionStatus === RESULTS.DENIED || permissionStatus === RESULTS.LIMITED) {
+      const result = await request(permissionType);
+      return result === RESULTS.GRANTED;
+    }
+
+    console.warn('Location permission denied');
+    return false;
+  };
+
+
+    useEffect(() => {
+      const startWatchingLocation = async () => {
+        const hasPermission = await requestLocationPermission();
+        if (hasPermission) {
+          const watchId = Geolocation.watchPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+              setMyLocation({ latitude, longitude });
+            },
+            (error) => console.error(error),
+            {
+              enableHighAccuracy: true,
+              distanceFilter: 1,
+              interval: 2000,
+              fastestInterval: 2000,
+            }
+          );
+    
+          return () => Geolocation.clearWatch(watchId);
+        } else {
+          console.warn('Location permission denied');
+        }
+      };
+    
+      startWatchingLocation();
+    }, []);
 
   useEffect(() => {
     let interval: any;
@@ -168,6 +226,9 @@ export default function ReturnToMeScreen() {
 
           <Text style={styles.infoText}>
             <Text style={styles.boldText}>ETA:</Text> {eta} second{eta !== 1 ? 's' : ''}
+          </Text>
+          <Text style={styles.infoText}>
+            <Text style={styles.boldText}>My Location:</Text> {myLocation ? `${myLocation.latitude}, ${myLocation.longitude}` : 'Fetching...'}
           </Text>
         </View>
       )}

@@ -9,14 +9,18 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
+    "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app requires Bluetooth to connect to your skateboard.",
-        "NSBluetoothPeripheralUsageDescription": "This app needs Bluetooth to communicate with nearby devices."
+        "NSBluetoothPeripheralUsageDescription": "This app needs Bluetooth to communicate with nearby devices.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to show your skateboard's location and enable navigation.",
+        "NSLocationAlwaysUsageDescription": "This app requires location access to track the skateboard's location.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires location access to track the skateboard's location.",
+        "CFBundleDisplayName": "SkateBack"
       },
       "bundleIdentifier": "com.anonymous.skatebackapp"
     },
@@ -29,6 +33,7 @@
         "BLUETOOTH",
         "BLUETOOTH_ADMIN",
         "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
         "BLUETOOTH_SCAN",
         "BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH",
