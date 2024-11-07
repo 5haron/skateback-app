@@ -35,7 +35,10 @@ import serial
 
 from ublox_gps import UbloxGps
 
-port = serial.Serial('/dev/serial0', baudrate=38400, timeout=1)
+# Usually '/dev/ttyACM2'
+SERIAL_GPS = '/dev/ttyACM0' 
+
+port = serial.Serial(SERIAL_GPS, baudrate=38400, timeout=1)
 gps = UbloxGps(port)
 
 def run():
@@ -48,6 +51,7 @@ def run():
                 print("Longitude: ", geo.lon) 
                 print("Latitude: ", geo.lat)
                 print("Heading of Motion: ", geo.headMot)
+                print(geo.lat, geo.lon)
             except (ValueError, IOError) as err:
                 print(err)
 

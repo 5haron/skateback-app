@@ -3,13 +3,19 @@ import time
 import threading
 import pyvesc
 from pyvesc.VESC.messages import SetDutyCycle, SetCurrent, GetValues
+import keyboard  # Assuming you have this for keyboard control
 
-ACC_STEP = 0.01    # Duty Cycle step for acceleration
-DEC_STEP = 0.02    # Duty Cycle step for deceleration
-BRK_STEP = 0.04    # Duty Cycle step for breaking
+# Constants
+ACC_STEP = 0.005    # Duty Cycle step for acceleration
+DEC_STEP = 0.02     # Duty Cycle step for deceleration
+BRK_STEP = 0.04     # Duty Cycle step for braking
 SERIAL_L = '/dev/ttyACM0'    # Serial Port for left motor
 SERIAL_R = '/dev/ttyACM1'    # Serial Port for right motor
-MAX_DUTY_CYCLE = 0.6    # Max duty cycle
+MAX_DUTY_CYCLE = 0.6         # Max duty cycle
+
+# Constants for keyboard control
+CONTROL_ACC_STEP = 0.02      # Control acceleration step
+CONTROL_DEC_STEP = 0.02      # Control deceleration step
 
 class SkateBack:
     def __init__(self):
@@ -34,19 +40,19 @@ class SkateBack:
         Enable use of the 'with' statement for resource management.
         """
         return self
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         """
         Ensure serial connections are closed when exiting the 'with' block.
         """
         self.close()
-        
+
     def __str__(self):
         """
         Return a string representation of the current duty cycles.
         """
         return f"L: {self.left_duty_cycle}; R: {self.right_duty_cycle}"
-    
+
     def close(self):
         """
         Close the serial connections for both wheels.
@@ -58,7 +64,7 @@ class SkateBack:
                 self.serial_right.close()
         except Exception as e:
             print(f"An error occurred while closing serial connections: {e}")
-        
+
     def create_timer(self, duration):
         """
         Create a timer function that returns True for a given duration.
@@ -70,18 +76,21 @@ class SkateBack:
             function: A function that returns True until the duration has elapsed.
         """
         start_time = time.time()
+
         def time_check():
             return (time.time() - start_time) < duration
+
         return time_check
 
-    def set_duty_cycle(self, wheel, duration, duty_cycle):  
+    def set_duty_cycle(self, wheel, duty_cycle, duration=None):
         """
-        Set a motor to a given duty cycle for a specified duration.
+        Set a motor to a given duty cycle. If duration is provided, maintain the duty cycle for that duration.
+        If duration is omitted, maintain the duty cycle indefinitely.
 
         Args:
             wheel (str): 'L' for left, 'R' for right.
-            duration (float): Amount of time to maintain the duty cycle.
             duty_cycle (float): Duty cycle to set, must be between -MAX_DUTY_CYCLE and MAX_DUTY_CYCLE.
+            duration (float, optional): Amount of time to maintain the duty cycle. If None, maintain indefinitely.
 
         Raises:
             ValueError: If duty_cycle is outside the valid range.
@@ -89,8 +98,13 @@ class SkateBack:
         if not -MAX_DUTY_CYCLE <= duty_cycle <= MAX_DUTY_CYCLE:
             raise ValueError(f"Duty cycle must be between {-MAX_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
 
-        # Create timer
-        timer = self.create_timer(duration)
+        # If duration is provided, create timer; else, define timer that always returns True
+        if duration is not None:
+            timer = self.create_timer(duration)
+        else:
+            # Timer that always returns True
+            def timer():
+                return True
 
         try:
             if wheel == "L":
@@ -112,7 +126,7 @@ class SkateBack:
                     else:
                         self.right_duty_cycle = duty_cycle
                     # Sleep to prevent overwhelming the VESC
-                    time.sleep(0.1)
+                    time.sleep(0.05)
 
         except KeyboardInterrupt:
             # Stop the motor immediately
@@ -171,16 +185,16 @@ class SkateBack:
 
         # Accelerate towards target duty cycle without exceeding MAX_DUTY_CYCLE in magnitude
         while (step > 0 and current_duty_cycle < target_duty_cycle) or \
-            (step < 0 and current_duty_cycle > target_duty_cycle):
+                (step < 0 and current_duty_cycle > target_duty_cycle):
             current_duty_cycle += step
             # Prevent overshooting the target duty cycle
             if (step > 0 and current_duty_cycle > target_duty_cycle) or \
-            (step < 0 and current_duty_cycle < target_duty_cycle):
+                    (step < 0 and current_duty_cycle < target_duty_cycle):
                 current_duty_cycle = target_duty_cycle
             # Ensure duty cycle does not exceed MAX_DUTY_CYCLE in magnitude
             if abs(current_duty_cycle) > MAX_DUTY_CYCLE:
                 current_duty_cycle = MAX_DUTY_CYCLE if current_duty_cycle > 0 else -MAX_DUTY_CYCLE
-            self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
+            self.set_duty_cycle(wheel, current_duty_cycle, duration=0.1)
 
     def decelerate_to(self, wheel, target_duty_cycle):
         """
@@ -211,16 +225,16 @@ class SkateBack:
 
         # Decelerate towards target duty cycle without exceeding MAX_DUTY_CYCLE in magnitude
         while (step < 0 and current_duty_cycle > target_duty_cycle) or \
-            (step > 0 and current_duty_cycle < target_duty_cycle):
+                (step > 0 and current_duty_cycle < target_duty_cycle):
             current_duty_cycle += step
             # Prevent overshooting the target duty cycle
             if (step < 0 and current_duty_cycle < target_duty_cycle) or \
-            (step > 0 and current_duty_cycle > target_duty_cycle):
+                    (step > 0 and current_duty_cycle > target_duty_cycle):
                 current_duty_cycle = target_duty_cycle
             # Ensure duty cycle does not exceed MAX_DUTY_CYCLE in magnitude
             if abs(current_duty_cycle) > MAX_DUTY_CYCLE:
                 current_duty_cycle = MAX_DUTY_CYCLE if current_duty_cycle > 0 else -MAX_DUTY_CYCLE
-            self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
+            self.set_duty_cycle(wheel, current_duty_cycle, duration=0.1)
 
     def brake(self, wheel):
         """
@@ -246,9 +260,9 @@ class SkateBack:
             current_duty_cycle += step
             # Prevent overshooting zero
             if (step < 0 and current_duty_cycle < target_duty_cycle) or \
-            (step > 0 and current_duty_cycle > target_duty_cycle):
+                    (step > 0 and current_duty_cycle > target_duty_cycle):
                 current_duty_cycle = target_duty_cycle
-            self.set_duty_cycle(wheel, duration=0.1, duty_cycle=current_duty_cycle)
+            self.set_duty_cycle(wheel, current_duty_cycle, duration=0.1)
 
     def emergency_stop(self):
         """
@@ -264,3 +278,56 @@ class SkateBack:
         except Exception as e:
             print(f"An error occurred during emergency_stop: {e}")
             raise
+
+    def keyboard_control(self, wheel):
+        """
+        Control the duty cycle of a wheel using keyboard inputs.
+
+        For the left wheel ('L'), 'W' increases acceleration and 'S' decreases it.
+        For the right wheel ('R'), 'Up' increases acceleration and 'Down' decreases it.
+
+        Args:
+            wheel (str): 'L' for left, 'R' for right.
+        """
+        if wheel == 'L':
+            key_increase = 'w'
+            key_decrease = 's'
+        elif wheel == 'R':
+            key_increase = 'up'
+            key_decrease = 'down'
+        else:
+            raise ValueError("Please specify 'L' or 'R' for wheel")
+
+        try:
+            # Start listening for key presses in the background
+            keyboard.on_press(self._make_on_press(wheel, key_increase, key_decrease))
+
+            # Keep the thread alive
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.emergency_stop()
+            print(f"Emergency stop initiated due to KeyboardInterrupt in wheel {wheel}.")
+        except Exception as e:
+            self.emergency_stop()
+            print(f"An error occurred in keyboard_control: {e}")
+
+    def _make_on_press(self, wheel, key_increase, key_decrease):
+        def on_press(event):
+            try:
+                key = event.name
+                if key == key_increase:
+                    current_duty_cycle = self.get_duty_cycle(wheel)
+                    target_duty_cycle = current_duty_cycle + CONTROL_ACC_STEP
+                    if target_duty_cycle > MAX_DUTY_CYCLE:
+                        target_duty_cycle = MAX_DUTY_CYCLE
+                    self.accelerate_to(wheel, target_duty_cycle)
+                elif key == key_decrease:
+                    current_duty_cycle = self.get_duty_cycle(wheel)
+                    target_duty_cycle = current_duty_cycle - CONTROL_DEC_STEP
+                    if target_duty_cycle < -MAX_DUTY_CYCLE:
+                        target_duty_cycle = -MAX_DUTY_CYCLE
+                    self.decelerate_to(wheel, target_duty_cycle)
+            except Exception as e:
+                print(f"Error in on_press handler: {e}")
+        return on_press
