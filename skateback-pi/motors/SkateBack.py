@@ -1,4 +1,5 @@
 import serial
+import sys
 import time
 import threading
 import pyvesc
@@ -279,6 +280,45 @@ class SkateBack:
             print(f"An error occurred during emergency_stop: {e}")
             raise
 
+    def accelerate(self):
+        """
+        Accelerate both wheels by increasing the duty cycle.
+        """
+        target_duty_cycle = min(self.left_duty_cycle + ACC_STEP, MAX_DUTY_CYCLE)
+        left_thread = threading.Thread(target=self.accelerate_to, args=("L", 0.2))
+        right_thread = threading.Thread(target=self.accelerate_to, args=("R", 0.2))
+
+        # Start both threads at the same time
+        left_thread.start()
+        right_thread.start()
+
+        # Wait for both to finish
+        left_thread.join()
+        right_thread.join()
+
+    def decelerate(self):
+        """
+        Decelerate both wheels by decreasing the duty cycle.
+        """
+        target_duty_cycle = max(self.left_duty_cycle - DEC_STEP, -MAX_DUTY_CYCLE)
+        left_thread = threading.Thread(target=self.decelerate_to, args=("L", target_duty_cycle))
+        right_thread = threading.Thread(target=self.decelerate_to, args=("R", target_duty_cycle))
+
+        # Start both threads at the same time
+        left_thread.start()
+        right_thread.start()
+
+        # Wait for both to finish
+        left_thread.join()
+        right_thread.join()
+
+    def stop(self):
+        """
+        Immediately stop both wheels by setting duty cycle to zero.
+        """
+        self.emergency_stop()
+        print("Both wheels stopped.")
+
     def keyboard_control(self, wheel):
         """
         Control the duty cycle of a wheel using keyboard inputs.
@@ -331,3 +371,20 @@ class SkateBack:
             except Exception as e:
                 print(f"Error in on_press handler: {e}")
         return on_press
+
+if __name__ == "__main__":
+    skateback = SkateBack()
+    
+    if len(sys.argv) > 1:
+        command = sys.argv[1]
+        print(f"Executing command: {command}") 
+        if command == "accelerate":
+            skateback.accelerate()
+        elif command == "decelerate":
+            skateback.decelerate()
+        elif command == "stop":
+            skateback.stop()
+        else:
+            print(f"Unknown command: {command}")
+    else:
+        print("No command provided")
