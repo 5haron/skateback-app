@@ -91,11 +91,18 @@ export default function RemoteControlScreen() {
             style={styles.batteryImage}
             resizeMode="contain"
           />
-          <Text style={styles.batteryLabel}>{batteryPercentage}%</Text>
+          {/* <Text style={styles.batteryLabel}>{batteryPercentage}%</Text> */}
 
           <View style={styles.batteryRectangleContainer}>
             {renderBatteryRectangles()}
           </View>
+          <TouchableOpacity
+            style={styles.stopBox}
+            onPress={() => console.log("Stop button pressed")}
+          >
+            <Text style={styles.stopTextDes}>Press twice to</Text>
+            <Text style={styles.stopText}>STOP</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.rightContainer}>
@@ -197,40 +204,42 @@ const styles = StyleSheet.create({
     height: 300,
   },
   skateBatteryImage: {
-    width: 400,
-    height: 380,
+    width: 160,
+    height: 500,
     alignSelf: "center",
-    marginTop: -1,
+    marginTop: -164,
     marginLeft: -10,
   },
   batteryImage: {
     position: "absolute",
-    top: 100,
-    left: -3,
-    width: 160,
+    top: 6,
+    left: 52,
+    width: 43,
     height: 160,
+    transform: [{ rotate: "90deg" }],
   },
-  batteryLabel: {
-    position: "absolute",
-    top: 270,
-    width: 159,
-    textAlign: "center",
-    fontSize: 28,
-    color: "white",
-    fontWeight: "bold",
-  },
+  // batteryLabel: {
+  //   position: "absolute",
+  //   top: 270,
+  //   width: 159,
+  //   textAlign: "center",
+  //   fontSize: 28,
+  //   color: "white",
+  //   fontWeight: "bold",
+  // },
   batteryRectangleContainer: {
     position: "absolute",
-    top: 149,
-    left: 49,
-    width: 56,
-    height: 100,
+    top: 40,
+    left: 46,
+    width: 32,
+    height: 92,
     flexDirection: "column",
     justifyContent: "flex-end",
+    transform: [{ rotate: "-90deg" }],
   },
   batteryRectangle: {
     width: "100%",
-    height: 21,
+    height: 10,
     backgroundColor: "white",
     marginBottom: 4,
   },
@@ -281,5 +290,30 @@ const styles = StyleSheet.create({
   },
   switch: {
     width: 60,
+  },
+  stopBox: {
+    backgroundColor: "#FBCBCB",
+    padding: 20,
+    borderRadius: 20,
+    marginTop: -160,
+    alignSelf: "center",
+    width: 147,
+    height: 185,
+    left: -4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stopTextDes: {
+    color: "#F67D7D",
+    fontSize: 16,
+    fontWeight: "medium",
+    textAlign: "center",
+  },
+  stopText: {
+    color: "#F02F2F",
+    fontSize: 50,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: -5,
   },
 });
