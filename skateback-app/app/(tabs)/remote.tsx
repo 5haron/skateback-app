@@ -17,7 +17,6 @@ const CHARACTERISTIC_UUID = "ABCDEF01-1234-5678-1234-56789ABCDEF0";
 const DOUBLE_PRESS_INTERVAL = 2000;
 
 export default function RemoteControlScreen() {
-  const [isReverse, setIsReverse] = useState(false);
   const [batteryPercentage, setBatteryPercentage] = useState(100);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [bleManager] = useState(() => new BleManager());
@@ -149,11 +148,6 @@ export default function RemoteControlScreen() {
     setCurrentSpeed((prev) => Math.max(0, prev - 1));
   };
 
-  const handleReverse = async (value: boolean) => {
-    setIsReverse(value);
-    await sendCommand(value ? "reverse_on" : "reverse_off");
-  };
-
   const handleStopPress = () => {
     const now = Date.now();
 
@@ -248,19 +242,6 @@ export default function RemoteControlScreen() {
             <TouchableOpacity style={styles.button} onPress={handleDecelerate}>
               <Text style={styles.buttonText}>–</Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.reverseContainer}>
-            <Text style={styles.reverseText}>Reverse</Text>
-            <Switch
-              value={isReverse}
-              onValueChange={(value) => {
-                setIsReverse(value);
-                handleReverse(value);
-              }}
-              trackColor={{ false: "#ccc", true: "#8ECAE6" }}
-              thumbColor={isReverse ? "#023047" : "#f4f3f4"}
-            />
           </View>
         </View>
       </View>
@@ -388,23 +369,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginVertical: 5,
     width: "100%",
+    height: 152,
   },
   buttonText: {
     fontSize: 120,
     fontWeight: "bold",
     color: "#023047",
-  },
-  reverseContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    alignItems: "center",
-  },
-  reverseText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#023047",
-    marginRight: 10,
-    marginLeft: 25,
   },
   switchWrapper: {
     flexDirection: "row",

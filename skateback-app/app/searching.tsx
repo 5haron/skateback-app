@@ -99,7 +99,7 @@ export default function SearchingPage() {
           pathname: "/device-list",
           params: { devices: JSON.stringify(availableDevices) },
         });
-      }, 3000); // 3-second delay
+      }, 2000); // 3-second delay
     }
   }, [availableDevices, router, manager]);
 
