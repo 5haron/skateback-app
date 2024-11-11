@@ -1,14 +1,29 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Platform } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import Geolocation from 'react-native-geolocation-service';
-import { PERMISSIONS, request, check, RESULTS, Permission} from 'react-native-permissions';
-import haversine from 'haversine';
+import React, { useRef, useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Animated,
+  Platform,
+} from "react-native";
+import MapView, { Marker } from "react-native-maps";
+import Icon from "react-native-vector-icons/FontAwesome";
+import Geolocation from "react-native-geolocation-service";
+import {
+  PERMISSIONS,
+  request,
+  check,
+  RESULTS,
+  Permission,
+} from "react-native-permissions";
+import haversine from "haversine";
 
 type Coordinates = {
   latitude: number;
   longitude: number;
+  accuracy?: number;
 };
 
 // CMU coordinates
@@ -18,8 +33,11 @@ const cmuLon = -79.9437;
 const destLat = 40.4435;
 const destLon = -79.9436;
 
-const calculateDistance = (startCoords: Coordinates, destCoords: Coordinates): number => {
-  return haversine(startCoords, destCoords, { unit: 'meter' });
+const calculateDistance = (
+  startCoords: Coordinates,
+  destCoords: Coordinates
+): number => {
+  return haversine(startCoords, destCoords, { unit: "meter" });
 };
 
 export default function ReturnToMeScreen() {
@@ -31,7 +49,7 @@ export default function ReturnToMeScreen() {
   );
 
   const [returnStarted, setReturnStarted] = useState(false);
-  const [eta, setEta] = useState(10); 
+  const [eta, setEta] = useState(10);
   const [progress, setProgress] = useState(new Animated.Value(0));
   const [myLocation, setMyLocation] = useState<Coordinates | null>(null);
 
@@ -43,7 +61,7 @@ export default function ReturnToMeScreen() {
     }) as Permission;
 
     if (!permissionType) {
-      console.warn('Location permission type not supported');
+      console.warn("Location permission type not supported");
       return false;
     }
 
@@ -53,42 +71,70 @@ export default function ReturnToMeScreen() {
       return true;
     }
 
-    if (permissionStatus === RESULTS.DENIED || permissionStatus === RESULTS.LIMITED) {
+    if (
+      permissionStatus === RESULTS.DENIED ||
+      permissionStatus === RESULTS.LIMITED
+    ) {
       const result = await request(permissionType);
       return result === RESULTS.GRANTED;
     }
 
-    console.warn('Location permission denied');
+    console.warn("Location permission denied");
     return false;
   };
 
+  useEffect(() => {
+    const startWatchingLocation = async () => {
+      const hasPermission = await requestLocationPermission();
+      if (hasPermission) {
+        const watchId = Geolocation.watchPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            setMyLocation({
+              latitude,
+              longitude,
+              accuracy,
+            });
 
-    useEffect(() => {
-      const startWatchingLocation = async () => {
-        const hasPermission = await requestLocationPermission();
-        if (hasPermission) {
-          const watchId = Geolocation.watchPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              setMyLocation({ latitude, longitude });
-            },
-            (error) => console.error(error),
-            {
-              enableHighAccuracy: true,
-              distanceFilter: 1,
-              interval: 2000,
-              fastestInterval: 2000,
-            }
-          );
-    
-          return () => Geolocation.clearWatch(watchId);
-        } else {
-          console.warn('Location permission denied');
-        }
-      };
-    
-      startWatchingLocation();
-    }, []);
+            // Log with accuracy 
+            console.log("Location update:", {
+              accuracy: accuracy
+                ? `${accuracy.toFixed(2)}m (${getAccuracyLevel(accuracy)})`
+                : "unknown",
+              coords: `${latitude}, ${longitude}`,
+            });
+          },
+          (error) => console.error(error),
+          {
+            enableHighAccuracy: true,
+            distanceFilter: 0,
+            interval: 500,
+            fastestInterval: 200,
+          }
+        );
+
+        return () => Geolocation.clearWatch(watchId);
+      }
+    };
+
+    startWatchingLocation();
+  }, []);
+
+  const getAccuracyLevel = (accuracy: number) => {
+    if (accuracy <= 5) return "Excellent";
+    if (accuracy <= 10) return "Very Good";
+    if (accuracy <= 20) return "Good";
+    if (accuracy <= 50) return "Moderate";
+    return "Poor";
+  };
+
+  const getAccuracyColor = (accuracy: number) => {
+    if (accuracy <= 5) return "#00C853"; // Green
+    if (accuracy <= 10) return "#64DD17"; // Light Green
+    if (accuracy <= 20) return "#FFD600"; // Yellow
+    if (accuracy <= 50) return "#FF9100"; // Orange
+    return "#FF1744"; // Red
+  };
 
   useEffect(() => {
     let interval: any;
@@ -107,7 +153,7 @@ export default function ReturnToMeScreen() {
 
       Animated.timing(progress, {
         toValue: 1,
-        duration: eta * 1000, 
+        duration: eta * 1000,
         useNativeDriver: false,
       }).start();
     }
@@ -118,19 +164,19 @@ export default function ReturnToMeScreen() {
   const handleReturnToggle = () => {
     if (returnStarted) {
       setReturnStarted(false);
-      setEta(2); 
-      setProgress(new Animated.Value(0)); 
+      setEta(2);
+      setProgress(new Animated.Value(0));
     } else {
       setReturnStarted(true);
     }
   };
 
   const recenterMap = () => {
-    if (mapRef.current) {
+    if (mapRef.current && myLocation) {
       mapRef.current.animateToRegion(
         {
-          latitude: (cmuLat + destLat) / 2,
-          longitude: (cmuLon + destLon) / 2,
+          latitude: myLocation.latitude,
+          longitude: myLocation.longitude,
           latitudeDelta: 0.001,
           longitudeDelta: 0.001,
         },
@@ -151,7 +197,11 @@ export default function ReturnToMeScreen() {
         disabled={distance > 122}
       >
         <Text style={styles.buttonText}>
-          {eta === 0 ? 'Return Successful!' : returnStarted ? 'Cancel Return' : 'Start Return'}
+          {eta === 0
+            ? "Return Successful!"
+            : returnStarted
+            ? "Cancel Return"
+            : "Start Return"}
         </Text>
       </TouchableOpacity>
 
@@ -159,7 +209,7 @@ export default function ReturnToMeScreen() {
         {eta === 0 ? (
           <View style={styles.mapReplacement}>
             <Image
-              source={require('@skateback/assets/images/success-return.png')} 
+              source={require("@skateback/assets/images/success-return.png")}
               style={styles.successImage}
               resizeMode="contain"
             />
@@ -169,14 +219,22 @@ export default function ReturnToMeScreen() {
             ref={mapRef}
             style={styles.map}
             initialRegion={{
-              latitude: cmuLat,
-              longitude: cmuLon,
+              latitude: myLocation ? myLocation.latitude : cmuLat,
+              longitude: myLocation ? myLocation.longitude : cmuLon,
               latitudeDelta: 0.0005,
               longitudeDelta: 0.0005,
             }}
           >
-            <Marker coordinate={{ latitude: cmuLat, longitude: cmuLon }} />
-            <Marker coordinate={{ latitude: destLat, longitude: destLon }} />
+            {/* <Marker coordinate={{ latitude: cmuLat, longitude: cmuLon }} />
+            <Marker coordinate={{ latitude: destLat, longitude: destLon }} /> */}
+            {myLocation && (
+              <Marker
+                coordinate={myLocation}
+                title="My Location"
+                description="Current position"
+                pinColor="blue"
+              />
+            )}
           </MapView>
         )}
 
@@ -195,7 +253,7 @@ export default function ReturnToMeScreen() {
               {
                 width: progress.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
+                  outputRange: ["0%", "100%"],
                 }),
               },
             ]}
@@ -207,7 +265,7 @@ export default function ReturnToMeScreen() {
         <View style={styles.progressBarContainer}>
           <View style={styles.fullProgressBar} />
           <Image
-            source={require('@skateback/assets/icons/checked-2.png')} 
+            source={require("@skateback/assets/icons/checked-2.png")}
             style={styles.checkIcon}
             resizeMode="contain"
           />
@@ -218,17 +276,39 @@ export default function ReturnToMeScreen() {
         <View style={styles.infoContainer}>
           <Text style={styles.infoText}>
             <Text style={styles.boldText}>Distance:</Text>
-            <Text style={[styles.distanceText, distance > 122 && styles.redText]}>
-              {' '}
+            <Text
+              style={[styles.distanceText, distance > 122 && styles.redText]}
+            >
+              {" "}
               {distance.toFixed(2)} meters
             </Text>
           </Text>
 
           <Text style={styles.infoText}>
-            <Text style={styles.boldText}>ETA:</Text> {eta} second{eta !== 1 ? 's' : ''}
+            <Text style={styles.boldText}>ETA:</Text> {eta} second
+            {eta !== 1 ? "s" : ""}
           </Text>
           <Text style={styles.infoText}>
-            <Text style={styles.boldText}>My Location:</Text> {myLocation ? `${myLocation.latitude}, ${myLocation.longitude}` : 'Fetching...'}
+            <Text style={styles.boldText}>My Location:</Text>{" "}
+            {myLocation
+              ? `${myLocation.latitude}, ${myLocation.longitude}`
+              : "Fetching..."}
+          </Text>
+          <Text style={styles.infoText}>
+            <Text style={styles.boldText}>Accuracy:</Text>{" "}
+            {myLocation?.accuracy ? (
+              <Text
+                style={[
+                  styles.accuracyText,
+                  { color: getAccuracyColor(myLocation.accuracy) },
+                ]}
+              >
+                ±{myLocation.accuracy.toFixed(2)} meters (
+                {getAccuracyLevel(myLocation.accuracy)})
+              </Text>
+            ) : (
+              "Unknown"
+            )}
           </Text>
         </View>
       )}
@@ -239,13 +319,14 @@ export default function ReturnToMeScreen() {
           <View style={styles.warningContent}>
             <View style={styles.warningRow}>
               <Image
-                source={require('@skateback/assets/icons/warning.png')}
+                source={require("@skateback/assets/icons/warning.png")}
                 style={styles.customIcon}
               />
               <Text style={styles.warningTitle}>Skateboard Out of Range</Text>
             </View>
             <Text style={styles.warningText}>
-              The skateboard is too far away for the Return to Me feature to work. Please move closer or manually retrieve the skateboard.
+              The skateboard is too far away for the Return to Me feature to
+              work. Please move closer or manually retrieve the skateboard.
             </Text>
           </View>
         </View>
@@ -257,44 +338,44 @@ export default function ReturnToMeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 16,
   },
   headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 10,
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    color: '#023047',
+    fontWeight: "bold",
+    color: "#023047",
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#8ECAE6',
+    backgroundColor: "#8ECAE6",
     borderRadius: 20,
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 30,
     marginHorizontal: 20,
     marginTop: -5,
   },
   buttonDisabled: {
-    backgroundColor: '#C1C1C1',
+    backgroundColor: "#C1C1C1",
   },
   buttonText: {
     fontSize: 21,
-    fontWeight: 'bold',
-    color: '#023047',
+    fontWeight: "bold",
+    color: "#023047",
   },
   mapContainer: {
     height: 400,
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 16,
     marginHorizontal: 20,
   },
@@ -303,81 +384,81 @@ const styles = StyleSheet.create({
   },
   mapReplacement: {
     flex: 1,
-    backgroundColor: '#E8F4FA', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+    backgroundColor: "#E8F4FA",
+    justifyContent: "center",
+    alignItems: "center",
   },
   successImage: {
     width: 350,
-    height: 350, 
+    height: 350,
   },
   recenterButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 10,
     right: 10,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderRadius: 30,
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 3,
   },
   progressBarContainer: {
-    height: 20, 
-    width: '90%',
-    backgroundColor: '#D9D9D9',
+    height: 20,
+    width: "90%",
+    backgroundColor: "#D9D9D9",
     borderRadius: 10,
-    marginHorizontal: '5%', 
+    marginHorizontal: "5%",
     marginBottom: 15,
-    marginTop: 5, 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
+    marginTop: 5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   progressBar: {
-    height: '100%', 
-    backgroundColor: '#FFB706',
+    height: "100%",
+    backgroundColor: "#FFB706",
     borderRadius: 10,
   },
   fullProgressBar: {
-    height: '100%', 
-    width: '100%', 
-    backgroundColor: '#FFB706',
+    height: "100%",
+    width: "100%",
+    backgroundColor: "#FFB706",
     borderRadius: 10,
   },
   checkIcon: {
-    width: 20, 
-    height: 20, 
-    position: 'absolute',
+    width: 20,
+    height: 20,
+    position: "absolute",
     right: 0,
-    top: 25
+    top: 25,
   },
   infoContainer: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   infoText: {
     fontSize: 16,
-    color: '#023047',
-    textAlign: 'right',
+    color: "#023047",
+    textAlign: "right",
     marginBottom: 2,
     marginHorizontal: 20,
   },
   boldText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   distanceText: {
-    color: '#023047',
+    color: "#023047",
   },
   redText: {
-    color: '#FF0000',
-    fontWeight: 'bold',
+    color: "#FF0000",
+    fontWeight: "bold",
   },
   warningContainer: {
-    backgroundColor: '#E8F4FA',
+    backgroundColor: "#E8F4FA",
     marginHorizontal: 20,
     marginTop: 10,
-    position: 'relative',
+    position: "relative",
   },
   warningContent: {
     padding: 17,
@@ -385,30 +466,33 @@ const styles = StyleSheet.create({
     paddingRight: 15,
   },
   warningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   warningTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#023047',
+    fontWeight: "bold",
+    color: "#023047",
     marginLeft: 8,
   },
   warningText: {
     fontSize: 14,
-    color: '#023047',
+    color: "#023047",
   },
   overlayRectangle: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     width: 15,
-    height: '100%',
-    backgroundColor: '#BBDFF0',
+    height: "100%",
+    backgroundColor: "#BBDFF0",
   },
   customIcon: {
     width: 34,
     height: 34,
+  },
+  accuracyText: {
+    fontWeight: "bold",
   },
 });
