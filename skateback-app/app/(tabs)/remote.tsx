@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,39 +6,175 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  Alert,
 } from "react-native";
-import axios from "axios";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { BleManager, Device } from "react-native-ble-plx";
+import { Buffer } from "buffer";
 
-const API_BASE_URL = "http://172.26.54.250:3000";
+const SERVICE_UUID = "12345678-1234-5678-1234-56789ABCDEF0";
+const CHARACTERISTIC_UUID = "ABCDEF01-1234-5678-1234-56789ABCDEF0";
+const DOUBLE_PRESS_INTERVAL = 2000;
 
 export default function RemoteControlScreen() {
   const [isReverse, setIsReverse] = useState(false);
   const [batteryPercentage, setBatteryPercentage] = useState(100);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [bleManager] = useState(() => new BleManager());
+  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  const [firstStopPressTime, setFirstStopPressTime] = useState<number | null>(
+    null
+  );
   const { skateboardName } = useLocalSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    connectToDevice();
+    return () => {
+      if (connectedDevice) {
+        connectedDevice.cancelConnection();
+      }
+    };
+  }, []);
+
+  const handleConnectionError = (message: string) => {
+    Alert.alert("Connection Error", message, [
+      {
+        text: "OK",
+        onPress: () => {
+          router.push("/searching");
+        },
+      },
+    ]);
+  };
+
+  const connectToDevice = async () => {
+    try {
+      let device: Device | null = (
+        await bleManager.connectedDevices([SERVICE_UUID])
+      )[0];
+
+      if (!device) {
+        device = await new Promise<Device>((resolve, reject) => {
+          bleManager.startDeviceScan(
+            [SERVICE_UUID],
+            null,
+            (error, scannedDevice) => {
+              if (error) {
+                reject(error);
+                return;
+              }
+              if (scannedDevice && scannedDevice.name === "mypi") {
+                bleManager.stopDeviceScan();
+                resolve(scannedDevice);
+              }
+            }
+          );
+
+          setTimeout(() => {
+            bleManager.stopDeviceScan();
+            reject(new Error("Device scan timeout"));
+          }, 10000);
+        });
+
+        device = await device.connect();
+      }
+
+      if (!device.isConnected) {
+        throw new Error("Device is not connected after connect call");
+      }
+
+      await device.discoverAllServicesAndCharacteristics();
+      setConnectedDevice(device);
+      console.log("Connected to device:", device.name);
+    } catch (error) {
+      console.error("Connection error:", error);
+      handleConnectionError(
+        "Failed to connect to the skateboard. Please reconnect to skateboard again."
+      );
+    }
+  };
+
+  const sendCommand = async (command: string) => {
+    if (!connectedDevice) {
+      console.log("No device connected");
+      return;
+    }
+
+    try {
+      const services = await connectedDevice.services();
+      const service = services.find(
+        (s) => s.uuid.toLowerCase() === SERVICE_UUID.toLowerCase()
+      );
+      if (!service) {
+        console.error("Service not found");
+        handleConnectionError(
+          "Failed to send command to the skateboard. Service not available."
+        );
+        return;
+      }
+
+      const characteristics = await service.characteristics();
+      const characteristic = characteristics.find(
+        (c) => c.uuid.toLowerCase() === CHARACTERISTIC_UUID.toLowerCase()
+      );
+
+      if (!characteristic) {
+        console.error("Characteristic not found");
+        handleConnectionError(
+          "Failed to send command to the skateboard. Characteristic not available."
+        );
+        return;
+      }
+
+      await characteristic.writeWithResponse(
+        Buffer.from(command).toString("base64")
+      );
+      console.log("Command sent:", command);
+    } catch (error) {
+      console.error("Error sending command:", error);
+      handleConnectionError(
+        "Failed to send command to the skateboard. Please try reconnecting."
+      );
+    }
+  };
 
   const handleAccelerate = async () => {
-    try {
-      await axios.post(`${API_BASE_URL}/accelerate`);
-    } catch (error) {
-      console.error("Error accelerating", error);
-    }
+    await sendCommand("accelerate");
+    setCurrentSpeed((prev) => prev + 1);
   };
 
   const handleDecelerate = async () => {
-    try {
-      await axios.post(`${API_BASE_URL}/decelerate`);
-    } catch (error) {
-      console.error("Error decelerating", error);
-    }
+    await sendCommand("decelerate");
+    setCurrentSpeed((prev) => Math.max(0, prev - 1));
   };
 
-  const handleReverse = async (isReverse: boolean) => {
-    try {
-      await axios.post(`${API_BASE_URL}/reverse`, { reverse: isReverse });
-      console.log(`Reverse ${isReverse ? "on" : "off"}`);
-    } catch (error) {
-      console.error("Error toggling reverse", error);
+  const handleReverse = async (value: boolean) => {
+    setIsReverse(value);
+    await sendCommand(value ? "reverse_on" : "reverse_off");
+  };
+
+  const handleStopPress = () => {
+    const now = Date.now();
+
+    if (
+      firstStopPressTime &&
+      now - firstStopPressTime <= DOUBLE_PRESS_INTERVAL
+    ) {
+      // If pressed twice within interval, send stop command
+      sendCommand("stop");
+      setCurrentSpeed(0);
+      setFirstStopPressTime(null); // Reset after successful double press
+    } else {
+      // Set the first press time
+      setFirstStopPressTime(now);
+
+      // Reset the press time after the interval if not pressed again
+      setTimeout(() => {
+        if (Date.now() - firstStopPressTime! >= DOUBLE_PRESS_INTERVAL) {
+          setFirstStopPressTime(null); // Reset if no second press
+        }
+      }, DOUBLE_PRESS_INTERVAL);
     }
   };
 
@@ -91,15 +227,10 @@ export default function RemoteControlScreen() {
             style={styles.batteryImage}
             resizeMode="contain"
           />
-          {/* <Text style={styles.batteryLabel}>{batteryPercentage}%</Text> */}
-
           <View style={styles.batteryRectangleContainer}>
             {renderBatteryRectangles()}
           </View>
-          <TouchableOpacity
-            style={styles.stopBox}
-            onPress={() => console.log("Stop button pressed")}
-          >
+          <TouchableOpacity style={styles.stopBox} onPress={handleStopPress}>
             <Text style={styles.stopTextDes}>Press twice to</Text>
             <Text style={styles.stopText}>STOP</Text>
           </TouchableOpacity>
@@ -218,15 +349,6 @@ const styles = StyleSheet.create({
     height: 160,
     transform: [{ rotate: "90deg" }],
   },
-  // batteryLabel: {
-  //   position: "absolute",
-  //   top: 270,
-  //   width: 159,
-  //   textAlign: "center",
-  //   fontSize: 28,
-  //   color: "white",
-  //   fontWeight: "bold",
-  // },
   batteryRectangleContainer: {
     position: "absolute",
     top: 40,
