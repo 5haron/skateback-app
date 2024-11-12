@@ -1,0 +1,12 @@
+[Unit]
+Description=Start BLE Server for SkateBack
+After=network.target bluetooth.target
+
+[Service]
+ExecStart=/usr/bin/sudo /usr/bin/node /home/pi/skateback-app/skateback-pi/bluetooth/bleServer.js
+Restart=on-failure
+User=pi
+WorkingDirectory=/home/pi/skateback-app/skateback-pi/bluetooth
+
+[Install]
+WantedBy=multi-user.target

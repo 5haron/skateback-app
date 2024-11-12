@@ -1,6 +1,6 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Image } from 'react-native';
+import { Tabs } from "expo-router";
+import React from "react";
+import { Image } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -9,30 +9,30 @@ export default function TabLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: '#fff',  
+          backgroundColor: "#fff",
           borderTopLeftRadius: 30,
           borderTopRightRadius: 30,
           height: 70,
-          position: 'absolute', 
+          position: "absolute",
           bottom: -10,
           left: 0,
           right: 0,
-          paddingBottom: 10, 
-          elevation: 0, 
-          shadowColor: 'transparent', 
+          paddingBottom: 10,
+          elevation: 0,
+          shadowColor: "transparent",
         },
         tabBarIcon: ({ color }) => {
           let iconName;
 
           switch (route.name) {
-            case 'remote':
-              iconName = require('@skateback/assets/icons/remote.png');
+            case "remote":
+              iconName = require("@skateback/assets/icons/remote.png");
               break;
-            case 'return':
-              iconName = require('@skateback/assets/icons/locations.png');
+            case "return":
+              iconName = require("@skateback/assets/icons/locations.png");
               break;
-            case 'stats':
-              iconName = require('@skateback/assets/icons/graph.png');
+            case "stats":
+              iconName = require("@skateback/assets/icons/graph.png");
               break;
           }
 
@@ -42,13 +42,13 @@ export default function TabLayout() {
               style={{
                 width: 35,
                 height: 35,
-                tintColor: color,  
+                tintColor: color,
               }}
             />
           );
         },
-        tabBarActiveTintColor: '#023047', 
-        tabBarInactiveTintColor: '#8ECAE6', 
+        tabBarActiveTintColor: "#023047",
+        tabBarInactiveTintColor: "#8ECAE6",
       })}
     >
       <Tabs.Screen
@@ -56,7 +56,7 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ color }) => (
             <Image
-              source={require('@skateback/assets/icons/remote.png')}
+              source={require("@skateback/assets/icons/remote.png")}
               style={{
                 width: 35,
                 height: 35,
@@ -71,7 +71,7 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ color }) => (
             <Image
-              source={require('@skateback/assets/icons/locations.png')}
+              source={require("@skateback/assets/icons/locations.png")}
               style={{
                 width: 35,
                 height: 35,
@@ -86,7 +86,7 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ color }) => (
             <Image
-              source={require('@skateback/assets/icons/graph.png')}
+              source={require("@skateback/assets/icons/graph.png")}
               style={{
                 width: 35,
                 height: 35,
