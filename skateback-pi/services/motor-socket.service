@@ -1,0 +1,12 @@
+[Unit]
+Description=Motor Control for SkateBack
+After=ble-server.service
+
+[Service]
+ExecStart=/home/pi/skateback-app/skateback-pi/venv/bin/python3 /home/pi/skateback-app/skateback-pi/motors/SkateBack.py
+Restart=on-failure
+User=pi
+WorkingDirectory=/home/pi/skateback-app/skateback-pi/motors
+
+[Install]
+WantedBy=multi-user.target
