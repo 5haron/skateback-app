@@ -1,22 +1,35 @@
 import serial
+import socket
 import sys
 import time
 import threading
 import pyvesc
 from pyvesc.VESC.messages import SetDutyCycle, SetCurrent, GetValues
 import keyboard  # Assuming you have this for keyboard control
+from gps import SkateBackGPS
+from gps import world
+import math
+
+# Socket server config
+HOST = 'localhost' 
+PORT = 65432
 
 # Constants
-ACC_STEP = 0.005    # Duty Cycle step for acceleration
-DEC_STEP = 0.02     # Duty Cycle step for deceleration
-BRK_STEP = 0.04     # Duty Cycle step for braking
-SERIAL_L = '/dev/ttyACM0'    # Serial Port for left motor
-SERIAL_R = '/dev/ttyACM1'    # Serial Port for right motor
-MAX_DUTY_CYCLE = 0.6         # Max duty cycle
+SERIAL_L = '/dev/vesc2'     # Serial Port for left motor
+SERIAL_R = '/dev/vesc1'     # Serial Port for right motor
+ACC_STEP = 0.005            # Increase initial acceleration step
+DEC_STEP = 0.005            # Make deceleration match acceleration
+BRK_STEP = 0.02             # Make braking smoother
+MIN_DUTY_CYCLE = 0.05       # Minimum duty cycle to start movement
+MAX_DUTY_CYCLE = 0.6        # Max duty cycle
 
 # Constants for keyboard control
 CONTROL_ACC_STEP = 0.02      # Control acceleration step
 CONTROL_DEC_STEP = 0.02      # Control deceleration step
+
+# Constants for autonomous navigation
+HEADING_DUTY_CYCLE = 0.1    # Duty cycle of movement to register a change in heading of motion
+TURN_TRIES = 10             # Maximum number of turn attempts to face destination
 
 class SkateBack:
     def __init__(self):
@@ -27,6 +40,7 @@ class SkateBack:
         """
         self.left_duty_cycle = 0.0
         self.right_duty_cycle = 0.0
+        self.running = True  
 
         # Initialize serial connections for left and right wheels
         self.serial_left = serial.Serial(SERIAL_L, baudrate=115200, timeout=0.05)
@@ -35,6 +49,14 @@ class SkateBack:
         # Locks for thread safety when accessing serial ports
         self.lock_left = threading.Lock()
         self.lock_right = threading.Lock()
+
+        # motor control threads
+        self.left_thread = threading.Thread(target=self._motor_control_loop, args=("L",))
+        self.right_thread = threading.Thread(target=self._motor_control_loop, args=("R",))
+        self.left_thread.daemon = True
+        self.right_thread.daemon = True
+        self.left_thread.start()
+        self.right_thread.start()
 
     def __enter__(self):
         """
@@ -54,17 +76,44 @@ class SkateBack:
         """
         return f"L: {self.left_duty_cycle}; R: {self.right_duty_cycle}"
 
+    def _motor_control_loop(self, wheel):
+        """
+        Continuous motor control loop that runs in a separate thread.
+        """
+        while self.running:
+            try:
+                if wheel == "L":
+                    with self.lock_left:
+                        duty_cycle = self.left_duty_cycle
+                        self.serial_left.write(pyvesc.encode(SetDutyCycle(duty_cycle)))
+                else:
+                    with self.lock_right:
+                        duty_cycle = self.right_duty_cycle
+                        self.serial_right.write(pyvesc.encode(SetDutyCycle(duty_cycle)))
+                time.sleep(0.05)  # 50ms update rate
+            except Exception as e:
+                print(f"Error in motor control loop for {wheel}: {e}")
+                time.sleep(0.1)  # Wait before retrying
+
     def close(self):
         """
-        Close the serial connections for both wheels.
+        Properly shut down the controller.
         """
         try:
+            # Stop the motor control loops
+            self.running = False
+            time.sleep(0.1)  # Give threads time to stop
+            
+            # Emergency stop both motors
+            self.emergency_stop()
+            
+            # Close serial connections
             if self.serial_left.is_open:
                 self.serial_left.close()
             if self.serial_right.is_open:
                 self.serial_right.close()
         except Exception as e:
-            print(f"An error occurred while closing serial connections: {e}")
+            print(f"An error occurred while closing: {e}")
 
     def create_timer(self, duration):
         """
@@ -85,58 +134,28 @@ class SkateBack:
 
     def set_duty_cycle(self, wheel, duty_cycle, duration=None):
         """
-        Set a motor to a given duty cycle. If duration is provided, maintain the duty cycle for that duration.
-        If duration is omitted, maintain the duty cycle indefinitely.
-
-        Args:
-            wheel (str): 'L' for left, 'R' for right.
-            duty_cycle (float): Duty cycle to set, must be between -MAX_DUTY_CYCLE and MAX_DUTY_CYCLE.
-            duration (float, optional): Amount of time to maintain the duty cycle. If None, maintain indefinitely.
-
-        Raises:
-            ValueError: If duty_cycle is outside the valid range.
+        Set a motor to a given duty cycle.
         """
         if not -MAX_DUTY_CYCLE <= duty_cycle <= MAX_DUTY_CYCLE:
             raise ValueError(f"Duty cycle must be between {-MAX_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
 
-        # If duration is provided, create timer; else, define timer that always returns True
-        if duration is not None:
-            timer = self.create_timer(duration)
-        else:
-            # Timer that always returns True
-            def timer():
-                return True
-
         try:
             if wheel == "L":
-                serial_port = self.serial_left
-                lock = self.lock_left
+                with self.lock_left:
+                    self.left_duty_cycle = duty_cycle
             elif wheel == "R":
-                serial_port = self.serial_right
-                lock = self.lock_right
+                with self.lock_right:
+                    self.right_duty_cycle = duty_cycle
             else:
                 raise ValueError("Please specify 'L' or 'R' for wheel")
 
-            with lock:
-                while timer():
-                    # Encode and send SetDutyCycle command
-                    serial_port.write(pyvesc.encode(SetDutyCycle(duty_cycle)))
-                    # Update duty cycle state
-                    if wheel == "L":
-                        self.left_duty_cycle = duty_cycle
-                    else:
-                        self.right_duty_cycle = duty_cycle
-                    # Sleep to prevent overwhelming the VESC
-                    time.sleep(0.05)
+            if duration is not None:
+                time.sleep(duration)
 
-        except KeyboardInterrupt:
-            # Stop the motor immediately
-            serial_port.write(pyvesc.encode(SetCurrent(0)))
-            raise
         except Exception as e:
             print(f"An error occurred in set_duty_cycle: {e}")
-            serial_port.write(pyvesc.encode(SetCurrent(0)))
             raise
+
 
     def get_duty_cycle(self, wheel):
         """
@@ -284,40 +303,135 @@ class SkateBack:
         """
         Accelerate both wheels by increasing the duty cycle.
         """
-        target_duty_cycle = min(self.left_duty_cycle + ACC_STEP, MAX_DUTY_CYCLE)
-        left_thread = threading.Thread(target=self.accelerate_to, args=("L", 0.2))
-        right_thread = threading.Thread(target=self.accelerate_to, args=("R", 0.2))
+        try:
+            # Start at MIN_DUTY_CYCLE if currently below it
+            new_left_duty = max(MIN_DUTY_CYCLE, self.left_duty_cycle + ACC_STEP)
+            new_right_duty = max(MIN_DUTY_CYCLE, self.right_duty_cycle + ACC_STEP)
+            
+            # Cap at MAX_DUTY_CYCLE
+            new_left_duty = min(new_left_duty, MAX_DUTY_CYCLE)
+            new_right_duty = min(new_right_duty, MAX_DUTY_CYCLE)
+            
+            self.set_duty_cycle("L", new_left_duty)
+            self.set_duty_cycle("R", new_right_duty)
+            
+            print(f"New duty cycles - Left: {new_left_duty:.3f}, Right: {new_right_duty:.3f}")
+        except Exception as e:
+            print(f"Error in accelerate: {e}")
+            self.emergency_stop()
 
-        # Start both threads at the same time
-        left_thread.start()
-        right_thread.start()
-
-        # Wait for both to finish
-        left_thread.join()
-        right_thread.join()
 
     def decelerate(self):
         """
-        Decelerate both wheels by decreasing the duty cycle.
+        Decelerate both wheels by decreasing the duty cycle. 
+        Goes into negative duty cycle for reverse motion.
         """
-        target_duty_cycle = max(self.left_duty_cycle - DEC_STEP, -MAX_DUTY_CYCLE)
-        left_thread = threading.Thread(target=self.decelerate_to, args=("L", target_duty_cycle))
-        right_thread = threading.Thread(target=self.decelerate_to, args=("R", target_duty_cycle))
-
-        # Start both threads at the same time
-        left_thread.start()
-        right_thread.start()
-
-        # Wait for both to finish
-        left_thread.join()
-        right_thread.join()
+        try:
+            # Decrease by DEC_STEP, allowing negative values
+            new_left_duty = self.left_duty_cycle - DEC_STEP
+            new_right_duty = self.right_duty_cycle - DEC_STEP
+            
+            # Don't exceed negative MAX_DUTY_CYCLE
+            new_left_duty = max(-MAX_DUTY_CYCLE, new_left_duty)
+            new_right_duty = max(-MAX_DUTY_CYCLE, new_right_duty)
+            
+            # If magnitude is below MIN_DUTY_CYCLE but not zero, jump to next significant value
+            if 0 > new_left_duty > -MIN_DUTY_CYCLE:
+                new_left_duty = -MIN_DUTY_CYCLE
+            if 0 > new_right_duty > -MIN_DUTY_CYCLE:
+                new_right_duty = -MIN_DUTY_CYCLE
+                
+            self.set_duty_cycle("L", new_left_duty)
+            self.set_duty_cycle("R", new_right_duty)
+            
+            print(f"New duty cycles - Left: {new_left_duty:.3f}, Right: {new_right_duty:.3f}")
+        except Exception as e:
+            print(f"Error in decelerate: {e}")
+            self.emergency_stop()
 
     def stop(self):
         """
-        Immediately stop both wheels by setting duty cycle to zero.
+        Smoothly stop both wheels by gradually reducing duty cycle to zero.
+        Handles both positive and negative duty cycles.
         """
-        self.emergency_stop()
-        print("Both wheels stopped.")
+        try:
+            while abs(self.left_duty_cycle) > 0 or abs(self.right_duty_cycle) > 0:
+                # Calculate new duty cycles
+                if self.left_duty_cycle > 0:
+                    new_left_duty = max(0, self.left_duty_cycle - BRK_STEP)
+                else:
+                    new_left_duty = min(0, self.left_duty_cycle + BRK_STEP)
+                    
+                if self.right_duty_cycle > 0:
+                    new_right_duty = max(0, self.right_duty_cycle - BRK_STEP)
+                else:
+                    new_right_duty = min(0, self.right_duty_cycle + BRK_STEP)
+                
+                # If magnitude is below MIN_DUTY_CYCLE, go to 0
+                if abs(new_left_duty) < MIN_DUTY_CYCLE:
+                    new_left_duty = 0
+                if abs(new_right_duty) < MIN_DUTY_CYCLE:
+                    new_right_duty = 0
+                
+                # Set new duty cycles
+                self.set_duty_cycle("L", new_left_duty)
+                self.set_duty_cycle("R", new_right_duty)
+                
+                print(f"Stopping - Left: {new_left_duty:.3f}, Right: {new_right_duty:.3f}")
+                time.sleep(0.05)  # Small delay for smooth deceleration
+                
+            print("Both wheels stopped smoothly.")
+        except Exception as e:
+            print(f"Error in stop: {e}")
+            # If smooth stop fails, use emergency stop as fallback
+            self.emergency_stop()
+
+    def get_location(self):
+        return SkateBackGPS.get_location()
+
+    def get_heading(self):
+        # Bring skateboard to a halt
+        self.stop()
+
+        # Move in current direction over short distance for GPS to register heading of motion 
+        # Not threaded, one wheel turn
+        self.accelerate_to("L", HEADING_DUTY_CYCLE)
+        self.stop()
+
+        return SkateBackGPS.get_heading()
+        
+    def navigate_to(self, destination):
+        """
+        Attempt to move SkateBack to within 1.0m of provided destination
+        Positions are converted to UTM
+        Angles are converted to Degrees
+
+        Args:
+            destination (tuple): Represents intended destination in the form (Latitude, Longitude), where each value is a float
+        """
+
+        # Bring the skateboard to a halt (safely in case rider is still on board)
+        self.stop()
+
+        for _ in range(TURN_TRIES):
+            heading = self.get_heading()
+            utm_current_location = self.get_location()
+            utm_destination = world.World.gps_to_world(destination)
+            x1, y1 = utm_current_location[0], utm_current_location[1]
+            x2, y2 = utm_destination[0], utm_destination[1]
+
+            dx = x2 - x1
+            dy = y2 - y1
+
+            # Derive turn angle
+            if dy >= 0:
+                if 0.0 <= heading < 180.0:
+                    turn_angle = math.degrees(math.atan(dx/dy)) - heading
+                elif 180.0 <= heading <= 360.0:
+                    turn_angle = math.degrees(math.atan(dx/dy)) - heading - 360
+            else:
+                turn_angle = math.degrees(math.atan(dx/dy)) - heading - 180
+        
 
     def keyboard_control(self, wheel):
         """
@@ -371,20 +485,89 @@ class SkateBack:
             except Exception as e:
                 print(f"Error in on_press handler: {e}")
         return on_press
+    
+def socket_server(skateback):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST, PORT))
+        s.listen()
+        print(f'Socket server listening on {HOST}:{PORT}')
+
+        while True:
+            conn, addr = s.accept()
+            conn.settimeout(None)  # Make sure connection doesn't timeout
+            print(f'Connected by {addr}')
+            
+            try:
+                buffer = ""
+                while True:
+                    try:
+                        data = conn.recv(1024).decode('utf-8')
+                        if not data:
+                            print("Client disconnected")
+                            break
+                        
+                        buffer += data
+                        
+                        # Process any complete commands in buffer
+                        while '\n' in buffer:
+                            command, buffer = buffer.split('\n', 1)
+                            command = command.strip()
+                            
+                            if command:
+                                print(f'Received command: {command}')
+                                try:
+                                    response = handle_command(skateback, command)
+                                    print(f'Command response: {response}')
+                                    conn.sendall((response + '\n').encode('utf-8'))
+                                except Exception as e:
+                                    error_msg = f"Error executing command: {str(e)}\n"
+                                    print(error_msg)
+                                    conn.sendall(error_msg.encode('utf-8'))
+                                    
+                    except socket.error as e:
+                        print(f"Socket error while receiving data: {e}")
+                        break
+                        
+            except Exception as e:
+                print(f"Error handling connection from {addr}: {e}")
+            finally:
+                try:
+                    conn.close()
+                    print(f"Connection with {addr} closed")
+                except:
+                    pass
+
+# Update the handle_command function for better error handling
+def handle_command(skateback, command):
+    """
+    Handle the received command by executing the corresponding action on the skateboard.
+    """
+    try:
+        print(f"Executing command: {command}")  # Debug print
+        if command == 'accelerate':
+            skateback.accelerate()
+            return "Successfully accelerated"
+        elif command == 'decelerate':
+            skateback.decelerate()
+            return "Successfully decelerated"
+        elif command == 'stop':
+            skateback.stop()
+            return "Successfully stopped"
+        else:
+            return f"Unknown command: {command}"
+    except Exception as e:
+        error_msg = f"Error executing command '{command}': {str(e)}"
+        print(error_msg)  # Debug print
+        return error_msg
 
 if __name__ == "__main__":
-    skateback = SkateBack()
-    
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-        print(f"Executing command: {command}") 
-        if command == "accelerate":
-            skateback.accelerate()
-        elif command == "decelerate":
-            skateback.decelerate()
-        elif command == "stop":
-            skateback.stop()
-        else:
-            print(f"Unknown command: {command}")
-    else:
-        print("No command provided")
+    try:
+        skateback = SkateBack()
+        socket_server(skateback)
+    except KeyboardInterrupt:
+        print("\nShutting down server...")
+    except Exception as e:
+        print(f"Fatal error: {e}")
+    finally:
+        print("Server stopped")

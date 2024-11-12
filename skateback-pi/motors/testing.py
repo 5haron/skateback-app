@@ -1,5 +1,5 @@
 import threading
-import SkateBack
+from . import SkateBack
 import time
 
 def test_with_keyboard():
@@ -33,8 +33,8 @@ def static_test():
     with SkateBack.SkateBack() as sk:
         try:
             # Define the duty cycle and duration
-            duty_cycle_L = 0.2  # Set desired duty cycle between -1.0 and 1.0
-            duty_cycle_R = -0.2  # Set desired duty cycle between -1.0 and 1.0
+            duty_cycle_L = 0.1  # Set desired duty cycle between -1.0 and 1.0
+            duty_cycle_R = -0.1  # Set desired duty cycle between -1.0 and 1.0
 
             # Create threads for left and right wheels
             left_thread = threading.Thread(target=sk.accelerate_to, args=("L", duty_cycle_L))
@@ -61,8 +61,7 @@ def static_test():
             print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    # static_test()
-    test_with_keyboard()
-    # with SkateBack.SkateBack() as sk:
-    #     # sk.set_duty_cycle("L", 0.02)
-    #     sk.accelerate_to("L", 0.6)
+    static_test()
+    # test_with_keyboard()
+    with SkateBack.SkateBack() as skateback:
+        skateback.navigate_to((0.0, 0.0))
