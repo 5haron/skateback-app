@@ -16,6 +16,54 @@ const SERVICE_UUID = "12345678-1234-5678-1234-56789ABCDEF0";
 const CHARACTERISTIC_UUID = "ABCDEF01-1234-5678-1234-56789ABCDEF0";
 const DOUBLE_PRESS_INTERVAL = 2000;
 
+const SpeedLevelIndicator = ({ currentSpeed }: { currentSpeed: number }) => {
+  const maxSpeed = 7;
+  const segments = maxSpeed * 2 + 1;
+  const activeSegment = currentSpeed + maxSpeed;
+
+  const renderSegments = () => {
+    const segments = [];
+    for (let i = 0; i < 15; i++) {
+      const isActive = i === activeSegment;
+
+      let backgroundColor;
+      if (i < 7) {
+        // Decelerate (red)
+        backgroundColor = isActive ? "#FF0000" : "rgba(255, 0, 0, 0.2)";
+      } else if (i > 7) {
+        // Accelerate (green)
+        backgroundColor = isActive ? "#00FF00" : "rgba(0, 255, 0, 0.2)";
+      } else {
+        // Center
+        backgroundColor = isActive ? "#023047" : "#E7F2F8";
+      }
+
+      segments.push(
+        <View
+          key={i}
+          style={[
+            styles.segment,
+            {
+              backgroundColor,
+            },
+          ]}
+        />
+      );
+    }
+    return segments;
+  };
+
+  return (
+    <View style={styles.speedIndicator}>
+      <Text style={styles.speedValue}>{Math.abs(currentSpeed)}</Text>
+      <View style={styles.labelContainer}>
+        <Text style={styles.speedLabel}>mph</Text>
+      </View>
+      <View style={styles.segmentsContainer}>{renderSegments()}</View>
+    </View>
+  );
+};
+
 export default function RemoteControlScreen() {
   const [batteryPercentage, setBatteryPercentage] = useState(100);
   const [currentSpeed, setCurrentSpeed] = useState(0);
@@ -140,12 +188,12 @@ export default function RemoteControlScreen() {
 
   const handleAccelerate = async () => {
     await sendCommand("accelerate");
-    setCurrentSpeed((prev) => prev + 1);
+    setCurrentSpeed((prev) => Math.min(7, prev + 1));
   };
 
   const handleDecelerate = async () => {
     await sendCommand("decelerate");
-    setCurrentSpeed((prev) => Math.max(0, prev - 1));
+    setCurrentSpeed((prev) => Math.max(-7, prev - 1));
   };
 
   const handleStopPress = () => {
@@ -155,18 +203,14 @@ export default function RemoteControlScreen() {
       firstStopPressTime &&
       now - firstStopPressTime <= DOUBLE_PRESS_INTERVAL
     ) {
-      // If pressed twice within interval, send stop command
       sendCommand("stop");
       setCurrentSpeed(0);
-      setFirstStopPressTime(null); // Reset after successful double press
+      setFirstStopPressTime(null);
     } else {
-      // Set the first press time
       setFirstStopPressTime(now);
-
-      // Reset the press time after the interval if not pressed again
       setTimeout(() => {
         if (Date.now() - firstStopPressTime! >= DOUBLE_PRESS_INTERVAL) {
-          setFirstStopPressTime(null); // Reset if no second press
+          setFirstStopPressTime(null);
         }
       }, DOUBLE_PRESS_INTERVAL);
     }
@@ -205,8 +249,7 @@ export default function RemoteControlScreen() {
       </View>
 
       <View style={styles.statBox}>
-        <Text style={styles.statValue}>7</Text>
-        <Text style={styles.statLabel}>mph</Text>
+        <SpeedLevelIndicator currentSpeed={currentSpeed} />
       </View>
 
       <View style={styles.splitContainer}>
@@ -286,20 +329,48 @@ const styles = StyleSheet.create({
     padding: 40,
     marginTop: 20,
     width: 320,
-    paddingHorizontal: 10,
     marginLeft: 20,
+    height: 180,
+    justifyContent: "center",
   },
-  statLabel: {
+  speedIndicator: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
+  speedValue: {
+    fontSize: 90,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 0,
+    color: "#023047",
+  },
+  segmentsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 25, // Increased height for thicker bars
+    width: "110%",
+    marginTop: 2, // Reduced top margin
+    gap: 5, // Slightly increased gap
+  },
+  segment: {
+    flex: 1,
+    height: "100%",
+    borderRadius: 6, // Increased border radius for thicker bars
+  },
+  labelContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -12, // Added margin to move mph down
+    marginBottom: 10, // Added margin to create space between mph and bars
+  },
+  speedLabel: {
     fontSize: 20,
     fontWeight: "bold",
     color: "#023047",
-    marginTop: -14,
-    textAlign: "center",
-  },
-  statValue: {
-    fontSize: 90,
-    fontWeight: "bold",
-    color: "#023047",
+    marginTop: 0, // Removed negative margin
   },
   splitContainer: {
     flexDirection: "row",
@@ -375,13 +446,6 @@ const styles = StyleSheet.create({
     fontSize: 120,
     fontWeight: "bold",
     color: "#023047",
-  },
-  switchWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  switch: {
-    width: 60,
   },
   stopBox: {
     backgroundColor: "#FBCBCB",
