@@ -48,6 +48,7 @@ export default function ReturnToMeScreen() {
     { latitude: cmuLat, longitude: destLon }
   );
 
+   // return frontend
   const [returnStarted, setReturnStarted] = useState(false);
   const [eta, setEta] = useState(10);
   const [progress, setProgress] = useState(new Animated.Value(0));
@@ -96,7 +97,7 @@ export default function ReturnToMeScreen() {
               accuracy,
             });
 
-            // Log with accuracy 
+            // Log with accuracy
             console.log("Location update:", {
               accuracy: accuracy
                 ? `${accuracy.toFixed(2)}m (${getAccuracyLevel(accuracy)})`
@@ -171,14 +172,39 @@ export default function ReturnToMeScreen() {
     }
   };
 
+  const calculateMidpoint = (coord1: Coordinates, coord2: Coordinates) => {
+    return {
+      latitude: (coord1.latitude + coord2.latitude) / 2,
+      longitude: (coord1.longitude + coord2.longitude) / 2,
+    };
+  };
+
+  const calculateDeltas = (coord1: Coordinates, coord2: Coordinates) => {
+    const padding = 1.5; // Adds some padding around the pins
+    const latDelta = Math.abs(coord1.latitude - coord2.latitude) * padding;
+    const lonDelta = Math.abs(coord1.longitude - coord2.longitude) * padding;
+    return {
+      latitudeDelta: Math.max(latDelta, 0.0005), // Minimum zoom level
+      longitudeDelta: Math.max(lonDelta, 0.0005), // Minimum zoom level
+    };
+  };
+
   const recenterMap = () => {
-    if (mapRef.current && myLocation) {
+    if (mapRef.current) {
+      const userLocation = myLocation || {
+        latitude: cmuLat,
+        longitude: cmuLon,
+      };
+      const skateboardLocation = { latitude: destLat, longitude: destLon };
+
+      const center = calculateMidpoint(userLocation, skateboardLocation);
+      const deltas = calculateDeltas(userLocation, skateboardLocation);
+
       mapRef.current.animateToRegion(
         {
-          latitude: myLocation.latitude,
-          longitude: myLocation.longitude,
-          latitudeDelta: 0.001,
-          longitudeDelta: 0.001,
+          latitude: center.latitude,
+          longitude: center.longitude,
+          ...deltas,
         },
         1000
       );
@@ -200,8 +226,8 @@ export default function ReturnToMeScreen() {
           {eta === 0
             ? "Return Successful!"
             : returnStarted
-            ? "Cancel Return"
-            : "Start Return"}
+              ? "Cancel Return"
+              : "Start Return"}
         </Text>
       </TouchableOpacity>
 
@@ -219,14 +245,16 @@ export default function ReturnToMeScreen() {
             ref={mapRef}
             style={styles.map}
             initialRegion={{
-              latitude: myLocation ? myLocation.latitude : cmuLat,
-              longitude: myLocation ? myLocation.longitude : cmuLon,
-              latitudeDelta: 0.0005,
-              longitudeDelta: 0.0005,
+              ...calculateMidpoint(
+                { latitude: cmuLat, longitude: cmuLon },
+                { latitude: destLat, longitude: destLon }
+              ),
+              ...calculateDeltas(
+                { latitude: cmuLat, longitude: cmuLon },
+                { latitude: destLat, longitude: destLon }
+              ),
             }}
           >
-            {/* <Marker coordinate={{ latitude: cmuLat, longitude: cmuLon }} />
-            <Marker coordinate={{ latitude: destLat, longitude: destLon }} /> */}
             {myLocation && (
               <Marker
                 coordinate={myLocation}
@@ -235,6 +263,12 @@ export default function ReturnToMeScreen() {
                 pinColor="blue"
               />
             )}
+            <Marker
+              coordinate={{ latitude: destLat, longitude: destLon }}
+              title="Skateboard"
+              description="Skateboard location"
+              pinColor="red"
+            />
           </MapView>
         )}
 
@@ -309,6 +343,12 @@ export default function ReturnToMeScreen() {
             ) : (
               "Unknown"
             )}
+          </Text>
+          <Text style={styles.infoText}>
+            <Text style={styles.boldText}>Skateboard Location:</Text>{" "}
+            {skateboardLocation
+              ? `${skateboardLocation.latitude}, ${skateboardLocation.longitude}`
+              : "Connecting..."}
           </Text>
         </View>
       )}
