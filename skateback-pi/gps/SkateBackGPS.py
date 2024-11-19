@@ -1,5 +1,5 @@
 import serial
-from . import world
+import world
 from ublox_gps import UbloxGps
 import asyncio
 import websockets
