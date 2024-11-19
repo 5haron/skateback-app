@@ -6,30 +6,23 @@ import threading
 import pyvesc
 from pyvesc.VESC.messages import SetDutyCycle, SetCurrent, GetValues
 import keyboard  # Assuming you have this for keyboard control
-from gps import SkateBackGPS
-from gps import world
-import math
 
 # Socket server config
 HOST = 'localhost' 
 PORT = 65432
 
 # Constants
-SERIAL_L = '/dev/vesc2'     # Serial Port for left motor
-SERIAL_R = '/dev/vesc1'     # Serial Port for right motor
-ACC_STEP = 0.005            # Increase initial acceleration step
-DEC_STEP = 0.005            # Make deceleration match acceleration
-BRK_STEP = 0.02             # Make braking smoother
-MIN_DUTY_CYCLE = 0.05       # Minimum duty cycle to start movement
-MAX_DUTY_CYCLE = 0.6        # Max duty cycle
+SERIAL_L = '/dev/ttyACM0'    # Serial Port for left motor
+SERIAL_R = '/dev/ttyACM1'    # Serial Port for right motor
+ACC_STEP = 0.02     # Increase initial acceleration step
+DEC_STEP = 0.02     # Make deceleration match acceleration
+BRK_STEP = 0.02     # Make braking smoother
+MIN_DUTY_CYCLE = 0.05  # Minimum duty cycle to start movement
+MAX_DUTY_CYCLE = 0.6   # Max duty cycle
 
 # Constants for keyboard control
 CONTROL_ACC_STEP = 0.02      # Control acceleration step
 CONTROL_DEC_STEP = 0.02      # Control deceleration step
-
-# Constants for autonomous navigation
-HEADING_DUTY_CYCLE = 0.1    # Duty cycle of movement to register a change in heading of motion
-TURN_TRIES = 10             # Maximum number of turn attempts to face destination
 
 class SkateBack:
     def __init__(self):
@@ -385,53 +378,6 @@ class SkateBack:
             print(f"Error in stop: {e}")
             # If smooth stop fails, use emergency stop as fallback
             self.emergency_stop()
-
-    def get_location(self):
-        return SkateBackGPS.get_location()
-
-    def get_heading(self):
-        # Bring skateboard to a halt
-        self.stop()
-
-        # Move in current direction over short distance for GPS to register heading of motion 
-        # Not threaded, one wheel turn
-        self.accelerate_to("L", HEADING_DUTY_CYCLE)
-        self.stop()
-
-        return SkateBackGPS.get_heading()
-        
-    def navigate_to(self, destination):
-        """
-        Attempt to move SkateBack to within 1.0m of provided destination
-        Positions are converted to UTM
-        Angles are converted to Degrees
-
-        Args:
-            destination (tuple): Represents intended destination in the form (Latitude, Longitude), where each value is a float
-        """
-
-        # Bring the skateboard to a halt (safely in case rider is still on board)
-        self.stop()
-
-        for _ in range(TURN_TRIES):
-            heading = self.get_heading()
-            utm_current_location = self.get_location()
-            utm_destination = world.World.gps_to_world(destination)
-            x1, y1 = utm_current_location[0], utm_current_location[1]
-            x2, y2 = utm_destination[0], utm_destination[1]
-
-            dx = x2 - x1
-            dy = y2 - y1
-
-            # Derive turn angle
-            if dy >= 0:
-                if 0.0 <= heading < 180.0:
-                    turn_angle = math.degrees(math.atan(dx/dy)) - heading
-                elif 180.0 <= heading <= 360.0:
-                    turn_angle = math.degrees(math.atan(dx/dy)) - heading - 360
-            else:
-                turn_angle = math.degrees(math.atan(dx/dy)) - heading - 180
-        
 
     def keyboard_control(self, wheel):
         """
