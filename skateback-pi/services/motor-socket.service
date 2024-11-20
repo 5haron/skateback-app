@@ -3,7 +3,7 @@ Description=Motor Control for SkateBack
 After=ble-server.service
 
 [Service]
-ExecStart=/home/pi/skateback-app/skateback-pi/venv/bin/python3 /home/pi/skateback-app/skateback-pi/motors/SkateBack.py
+ExecStart=/home/pi/skateback-app/skateback-pi/venv/bin/python3 /home/pi/skateback-app/skateback-pi/control/SkateBack.py
 Restart=on-failure
 User=pi
 WorkingDirectory=/home/pi/skateback-app/skateback-pi/motors

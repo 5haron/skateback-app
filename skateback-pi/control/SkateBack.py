@@ -6,6 +6,7 @@ import threading
 import pyvesc
 from pyvesc.VESC.messages import SetDutyCycle, SetCurrent, GetValues
 import keyboard  # Assuming you have this for keyboard control
+import SkateBackGPS
 
 # Socket server config
 HOST = 'localhost' 

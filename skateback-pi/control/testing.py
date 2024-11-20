@@ -1,5 +1,6 @@
 import threading
-from . import SkateBack
+import SkateBack
+import SkateBackGPS
 import time
 
 def test_with_keyboard():
@@ -33,8 +34,8 @@ def static_test():
     with SkateBack.SkateBack() as sk:
         try:
             # Define the duty cycle and duration
-            duty_cycle_L = 0.1  # Set desired duty cycle between -1.0 and 1.0
-            duty_cycle_R = -0.1  # Set desired duty cycle between -1.0 and 1.0
+            duty_cycle_L = -0.1  # Set desired duty cycle between -1.0 and 1.0
+            duty_cycle_R = 0.4  # Set desired duty cycle between -1.0 and 1.0
 
             # Create threads for left and right wheels
             left_thread = threading.Thread(target=sk.accelerate_to, args=("L", duty_cycle_L))
@@ -62,6 +63,6 @@ def static_test():
 
 if __name__ == "__main__":
     static_test()
+    sk_gps = SkateBackGPS.SkateBackGPS()
+    sk_gps.get_location()
     # test_with_keyboard()
-    with SkateBack.SkateBack() as skateback:
-        skateback.navigate_to((0.0, 0.0))
