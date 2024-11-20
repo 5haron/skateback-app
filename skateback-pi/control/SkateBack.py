@@ -15,11 +15,18 @@ PORT = 65432
 # Constants
 SERIAL_L = '/dev/ttyACM0'    # Serial Port for left motor
 SERIAL_R = '/dev/ttyACM1'    # Serial Port for right motor
-ACC_STEP = 0.02     # Increase initial acceleration step
-DEC_STEP = 0.02     # Make deceleration match acceleration
+ACC_STEP = 0.007     # Increase initial acceleration step
+DEC_STEP = 0.007     # Make deceleration match acceleration
 BRK_STEP = 0.02     # Make braking smoother
 MIN_DUTY_CYCLE = 0.05  # Minimum duty cycle to start movement
 MAX_DUTY_CYCLE = 0.6   # Max duty cycle
+
+# Notes on turning:
+# Turn duty cycle magnitude should be 0.1 for both wheels. Positive wheel is side turned towards. 
+# Negative wheel is side turned away from.
+# ACC/DEC STEP shoud range from 0.003 to 0.007 for turns.
+# Higher steps give more stationary turns, but over a smaller angle (preferable, just loop more?)
+# Lower steps give turns over a greater angle, but also cause the board to trnslate forward/backward unpredictably
 
 # Constants for keyboard control
 CONTROL_ACC_STEP = 0.02      # Control acceleration step
@@ -433,6 +440,72 @@ class SkateBack:
                 print(f"Error in on_press handler: {e}")
         return on_press
     
+    def turn_left(self, target_duty_cycle=0.1):
+        """
+        Pivot the skateboard to the left by setting the left wheel to move backward
+        and the right wheel to move forward simultaneously.
+
+        Args:
+            target_duty_cycle (float): The duty cycle magnitude for turning.
+                                       Default is 0.1, must be between MIN_DUTY_CYCLE and MAX_DUTY_CYCLE.
+        """
+        if not MIN_DUTY_CYCLE <= abs(target_duty_cycle) <= MAX_DUTY_CYCLE:
+            raise ValueError(f"Target duty cycle must be between {MIN_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
+
+        print("Turning left...")
+
+        # Left wheel moves backward, right wheel moves forward
+        duty_cycle_L = -abs(target_duty_cycle)
+        duty_cycle_R = abs(target_duty_cycle)
+
+        # Create threads for simultaneous wheel control
+        left_thread = threading.Thread(target=self.accelerate_to, args=("L", duty_cycle_L))
+        right_thread = threading.Thread(target=self.accelerate_to, args=("R", duty_cycle_R))
+
+        # Start both threads
+        left_thread.start()
+        right_thread.start()
+
+        # Wait for both threads to complete
+        left_thread.join()
+        right_thread.join()
+
+        time.sleep(2)           # Let the skateboard pivot for 2 seconds
+        self.emergency_stop()   # Stay in place until next instruction
+
+    def turn_right(self, target_duty_cycle=0.1):
+        """
+        Pivot the skateboard to the right by setting the left wheel to move forward
+        and the right wheel to move backward simultaneously.
+
+        Args:
+            target_duty_cycle (float): The duty cycle magnitude for turning.
+                                       Default is 0.1, must be between MIN_DUTY_CYCLE and MAX_DUTY_CYCLE.
+        """
+        if not MIN_DUTY_CYCLE <= abs(target_duty_cycle) <= MAX_DUTY_CYCLE:
+            raise ValueError(f"Target duty cycle must be between {MIN_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
+        
+        print("Turning right...")
+
+        # Left wheel moves forward, right wheel moves backward
+        duty_cycle_L = abs(target_duty_cycle)
+        duty_cycle_R = -abs(target_duty_cycle)
+
+        # Create threads for simultaneous wheel control
+        left_thread = threading.Thread(target=self.accelerate_to, args=("L", duty_cycle_L))
+        right_thread = threading.Thread(target=self.accelerate_to, args=("R", duty_cycle_R))
+
+        # Start both threads
+        left_thread.start()
+        right_thread.start()
+
+        # Wait for both threads to complete
+        left_thread.join()
+        right_thread.join()
+
+        time.sleep(2)           # Let the skateboard pivot for 2 seconds
+        self.emergency_stop()   # Stay in place until next instruction
+
 def socket_server(skateback):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

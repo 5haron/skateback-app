@@ -35,7 +35,7 @@ def static_test():
         try:
             # Define the duty cycle and duration
             duty_cycle_L = -0.1  # Set desired duty cycle between -1.0 and 1.0
-            duty_cycle_R = 0.4  # Set desired duty cycle between -1.0 and 1.0
+            duty_cycle_R = 0.1  # Set desired duty cycle between -1.0 and 1.0
 
             # Create threads for left and right wheels
             left_thread = threading.Thread(target=sk.accelerate_to, args=("L", duty_cycle_L))
@@ -61,8 +61,27 @@ def static_test():
             sk.emergency_stop()
             print(f"An error occurred: {e}")
 
+def turn_test():
+    with SkateBack.SkateBack() as sk:
+        try:
+            # Turn left
+            sk.turn_left(target_duty_cycle=0.1)
+
+            # Turn right
+            sk.turn_right(target_duty_cycle=0.1)
+
+            print("Turn test completed.")
+
+        except KeyboardInterrupt:
+            sk.emergency_stop()
+            print("Emergency stop initiated due to KeyboardInterrupt.")
+
+        except Exception as e:
+            sk.emergency_stop()
+            print(f"An error occurred: {e}")
+
 if __name__ == "__main__":
-    static_test()
-    sk_gps = SkateBackGPS.SkateBackGPS()
-    sk_gps.get_location()
+    turn_test()
+    # sk_gps = SkateBackGPS.SkateBackGPS()
+    # sk_gps.get_location()
     # test_with_keyboard()
