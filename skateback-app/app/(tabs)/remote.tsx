@@ -17,24 +17,21 @@ const CHARACTERISTIC_UUID = "ABCDEF01-1234-5678-1234-56789ABCDEF0";
 const DOUBLE_PRESS_INTERVAL = 2000;
 
 const SpeedLevelIndicator = ({ currentSpeed }: { currentSpeed: number }) => {
-  const maxSpeed = 7;
+  const maxSpeed = 12;
   const segments = maxSpeed * 2 + 1;
   const activeSegment = currentSpeed + maxSpeed;
 
   const renderSegments = () => {
     const segments = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 25; i++) {
       const isActive = i === activeSegment;
 
       let backgroundColor;
-      if (i < 7) {
-        // Decelerate (red)
+      if (i < 12) {
         backgroundColor = isActive ? "#FF0000" : "rgba(255, 0, 0, 0.2)";
-      } else if (i > 7) {
-        // Accelerate (green)
+      } else if (i > 12) {
         backgroundColor = isActive ? "#00FF00" : "rgba(0, 255, 0, 0.2)";
       } else {
-        // Center
         backgroundColor = isActive ? "#023047" : "#E7F2F8";
       }
 
@@ -188,12 +185,12 @@ export default function RemoteControlScreen() {
 
   const handleAccelerate = async () => {
     await sendCommand("accelerate");
-    setCurrentSpeed((prev) => Math.min(7, prev + 1));
+    setCurrentSpeed((prev) => Math.min(12, prev + 1)); // Changed from 7 to 12
   };
 
   const handleDecelerate = async () => {
     await sendCommand("decelerate");
-    setCurrentSpeed((prev) => Math.max(-7, prev - 1));
+    setCurrentSpeed((prev) => Math.max(-12, prev - 1)); // Changed from -7 to -12
   };
 
   const handleStopPress = () => {
@@ -350,27 +347,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 25, // Increased height for thicker bars
+    height: 25,
     width: "110%",
-    marginTop: 2, // Reduced top margin
-    gap: 5, // Slightly increased gap
+    marginTop: 2,
+    gap: 3,
   },
   segment: {
     flex: 1,
     height: "100%",
-    borderRadius: 6, // Increased border radius for thicker bars
+    borderRadius: 6,
   },
   labelContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -12, // Added margin to move mph down
-    marginBottom: 10, // Added margin to create space between mph and bars
+    marginTop: -12,
+    marginBottom: 10,
   },
   speedLabel: {
     fontSize: 20,
     fontWeight: "bold",
     color: "#023047",
-    marginTop: 0, // Removed negative margin
+    marginTop: 0,
   },
   splitContainer: {
     flexDirection: "row",
