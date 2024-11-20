@@ -16,22 +16,30 @@ const SERVICE_UUID = "12345678-1234-5678-1234-56789ABCDEF0";
 const CHARACTERISTIC_UUID = "ABCDEF01-1234-5678-1234-56789ABCDEF0";
 const DOUBLE_PRESS_INTERVAL = 2000;
 
-const SpeedLevelIndicator = ({ currentSpeed }: { currentSpeed: number }) => {
-  const maxSpeed = 12;
-  const segments = maxSpeed * 2 + 1;
-  const activeSegment = currentSpeed + maxSpeed;
+const SpeedLevelIndicator = ({
+  currentSegment,
+  dutyCycle,
+}: {
+  currentSegment: number;
+  dutyCycle: number;
+}) => {
+  const totalSegments = 25;
+  const centerSegment = 12;
 
   const renderSegments = () => {
     const segments = [];
-    for (let i = 0; i < 25; i++) {
-      const isActive = i === activeSegment;
+    for (let i = 0; i < totalSegments; i++) {
+      const isActive = i === currentSegment;
 
       let backgroundColor;
-      if (i < 12) {
+      if (i < centerSegment) {
+        // Reverse/Decelerate (red)
         backgroundColor = isActive ? "#FF0000" : "rgba(255, 0, 0, 0.2)";
-      } else if (i > 12) {
+      } else if (i > centerSegment) {
+        // Forward/Accelerate (green)
         backgroundColor = isActive ? "#00FF00" : "rgba(0, 255, 0, 0.2)";
       } else {
+        // Center
         backgroundColor = isActive ? "#023047" : "#E7F2F8";
       }
 
@@ -52,9 +60,9 @@ const SpeedLevelIndicator = ({ currentSpeed }: { currentSpeed: number }) => {
 
   return (
     <View style={styles.speedIndicator}>
-      <Text style={styles.speedValue}>{Math.abs(currentSpeed)}</Text>
+      <Text style={styles.speedValue}>{Math.abs(dutyCycle).toFixed(2)}</Text>
       <View style={styles.labelContainer}>
-        <Text style={styles.speedLabel}>mph</Text>
+        <Text style={styles.speedLabel}>duty cycle</Text>
       </View>
       <View style={styles.segmentsContainer}>{renderSegments()}</View>
     </View>
@@ -63,7 +71,8 @@ const SpeedLevelIndicator = ({ currentSpeed }: { currentSpeed: number }) => {
 
 export default function RemoteControlScreen() {
   const [batteryPercentage, setBatteryPercentage] = useState(100);
-  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [dutyCycle, setDutyCycle] = useState(0);
+  const [currentSegment, setCurrentSegment] = useState(12);
   const [bleManager] = useState(() => new BleManager());
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
   const [firstStopPressTime, setFirstStopPressTime] = useState<number | null>(
@@ -184,24 +193,61 @@ export default function RemoteControlScreen() {
   };
 
   const handleAccelerate = async () => {
+    let newDutyCycle;
+    let newSegment = currentSegment;
+
+    if (dutyCycle === 0) {
+      // Initial acceleration from 0
+      newDutyCycle = 0.05;
+      newSegment = 13; // Move one segment right from center
+    } else if (dutyCycle === -0.05) {
+      // Special case: stepping up from -0.05 to 0
+      newDutyCycle = 0;
+      newSegment = 12; // Back to center
+    } else {
+      // Regular acceleration step
+      newDutyCycle = Math.min(0.6, dutyCycle + 0.02);
+      newSegment = Math.min(24, currentSegment + 1); // Move one segment right, max at 24
+    }
+
+    setDutyCycle(newDutyCycle);
+    setCurrentSegment(newSegment);
     await sendCommand("accelerate");
-    setCurrentSpeed((prev) => Math.min(12, prev + 1)); // Changed from 7 to 12
   };
 
   const handleDecelerate = async () => {
+    let newDutyCycle;
+    let newSegment = currentSegment;
+
+    if (dutyCycle === 0) {
+      // Initial deceleration from 0
+      newDutyCycle = -0.05;
+      newSegment = 11; // Move one segment left from center
+    } else if (dutyCycle === 0.05) {
+      // Special case: stepping down from 0.05 to 0
+      newDutyCycle = 0;
+      newSegment = 12; // Back to center
+    } else {
+      // Regular deceleration step
+      newDutyCycle = Math.max(-0.6, dutyCycle - 0.02);
+      newSegment = Math.max(0, currentSegment - 1); // Move one segment left, min at 0
+    }
+
+    setDutyCycle(newDutyCycle);
+    setCurrentSegment(newSegment);
     await sendCommand("decelerate");
-    setCurrentSpeed((prev) => Math.max(-12, prev - 1)); // Changed from -7 to -12
   };
 
-  const handleStopPress = () => {
+  const handleStopPress = async () => {
     const now = Date.now();
 
     if (
       firstStopPressTime &&
       now - firstStopPressTime <= DOUBLE_PRESS_INTERVAL
     ) {
-      sendCommand("stop");
-      setCurrentSpeed(0);
+      setDutyCycle(0);
+      setCurrentSegment(12); // Reset to center segment
+      await sendCommand("stop");
       setFirstStopPressTime(null);
     } else {
       setFirstStopPressTime(now);
@@ -246,7 +292,10 @@ export default function RemoteControlScreen() {
       </View>
 
       <View style={styles.statBox}>
-        <SpeedLevelIndicator currentSpeed={currentSpeed} />
+        <SpeedLevelIndicator
+          currentSegment={currentSegment}
+          dutyCycle={dutyCycle}
+        />
       </View>
 
       <View style={styles.splitContainer}>
