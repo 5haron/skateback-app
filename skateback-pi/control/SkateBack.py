@@ -140,6 +140,8 @@ class SkateBack:
         if not -MAX_DUTY_CYCLE <= duty_cycle <= MAX_DUTY_CYCLE:
             raise ValueError(f"Duty cycle must be between {-MAX_DUTY_CYCLE} and {MAX_DUTY_CYCLE}")
 
+        duty_cycle = -duty_cycle
+
         try:
             if wheel == "L":
                 with self.lock_left:

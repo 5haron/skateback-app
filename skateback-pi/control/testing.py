@@ -80,8 +80,44 @@ def turn_test():
             sk.emergency_stop()
             print(f"An error occurred: {e}")
 
+def direction_test():
+    with SkateBack.SkateBack() as sk:
+        try:
+            print("Testing left wheel with positive duty cycle...")
+            sk.set_duty_cycle("L", 0.1)
+            time.sleep(2)
+            sk.set_duty_cycle("L", 0.0)
+            time.sleep(1)
+            
+            print("Testing left wheel with negative duty cycle...")
+            sk.set_duty_cycle("L", -0.1)
+            time.sleep(2)
+            sk.set_duty_cycle("L", 0.0)
+            time.sleep(1)
+            
+            print("Testing right wheel with positive duty cycle...")
+            sk.set_duty_cycle("R", 0.1)
+            time.sleep(2)
+            sk.set_duty_cycle("R", 0.0)
+            time.sleep(1)
+            
+            print("Testing right wheel with negative duty cycle...")
+            sk.set_duty_cycle("R", -0.1)
+            time.sleep(2)
+            sk.set_duty_cycle("R", 0.0)
+            
+            print("Direction test completed.")
+            
+        except KeyboardInterrupt:
+            sk.emergency_stop()
+            print("Emergency stop initiated due to KeyboardInterrupt.")
+        except Exception as e:
+            sk.emergency_stop()
+            print(f"An error occurred: {e}")
+
 if __name__ == "__main__":
-    turn_test()
+    direction_test()
+    # turn_test()
     # sk_gps = SkateBackGPS.SkateBackGPS()
     # sk_gps.get_location()
     # test_with_keyboard()
