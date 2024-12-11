@@ -9,10 +9,11 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
-    "resizeMode": "contain",
+      "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "icon": "./assets/icons/app-cover.png",
       "supportsTablet": true,
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app requires Bluetooth to connect to your skateboard.",
@@ -54,10 +55,7 @@
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": [
-            "peripheral",
-            "central"
-          ],
+          "modes": ["peripheral", "central"],
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to Bluetooth devices"
         }
       ]
